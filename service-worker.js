@@ -1,4 +1,6 @@
 const CACHE_NAME = 'nutri-tracker-v1';
+const FOOD_CACHE = 'food-cache';
+
 const ASSETS = [
   './',
   './index.html',
@@ -15,29 +17,41 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter(k => k !== CACHE_NAME && k !== FOOD_CACHE)
+          .map(k => caches.delete(k))
+      )
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
-});
+self.addEventListener('fetch', event => {
+  const url = event.request.url;
 
-// service-worker.js
-self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('openfoodfacts.org')) {
+  // 🍎 Cas 1 : API Open Food Facts
+  if (url.includes('openfoodfacts.org')) {
     event.respondWith(
-      caches.open('food-cache').then(async cache => {
-        const cachedResponse = await cache.match(event.request);
-        if (cachedResponse) return cachedResponse;
-        const networkResponse = await fetch(event.request);
-        cache.put(event.request, networkResponse.clone());
-        return networkResponse;
+      caches.open(FOOD_CACHE).then(async cache => {
+        try {
+          const networkResponse = await fetch(event.request);
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        } catch (err) {
+          // fallback offline
+          const cachedResponse = await cache.match(event.request);
+          return cachedResponse;
+        }
       })
     );
+    return;
   }
+
+  // 📦 Cas 2 : assets de la PWA
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      return cached || fetch(event.request);
+    })
+  );
 });
