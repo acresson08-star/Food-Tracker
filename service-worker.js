@@ -26,3 +26,18 @@ self.addEventListener('fetch', e => {
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
 });
+
+// service-worker.js
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.includes('openfoodfacts.org')) {
+    event.respondWith(
+      caches.open('food-cache').then(async cache => {
+        const cachedResponse = await cache.match(event.request);
+        if (cachedResponse) return cachedResponse;
+        const networkResponse = await fetch(event.request);
+        cache.put(event.request, networkResponse.clone());
+        return networkResponse;
+      })
+    );
+  }
+});
