@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#0b0d12"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="NutriTracker"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/1f957.png"/>
+<title>NutriTracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0b0d12;
+  --surface: #13161e;
+  --surface2: #1a1e28;
+  --border: #252935;
+  --accent: #c8f060;
+  --text: #e8ecf4;
+  --muted: #6b7280;
+  --cal-color: #f0a060;
+  --prot-color: #60c8f0;
+  --carb-color: #c8f060;
+  --fat-color: #f060a8;
+  --radius: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; }
+#app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+header {
+  padding: calc(16px + var(--safe-top)) 20px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px; }
+.logo span { color: var(--accent); }
+.date-nav { display: flex; align-items: center; gap: 8px; }
+.date-nav button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 8px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+#current-date { font-size: 0.8rem; font-weight: 600; color: var(--muted); min-width: 90px; text-align: center; }
+
+.tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.tab { flex: 1; padding: 10px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: center; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.2s; font-family: 'Syne', sans-serif; background: none; border-top: none; border-left: none; border-right: none; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+main { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: calc(16px + var(--safe-bottom)); }
+.page { display: none; }
+.page.active { display: block; }
+
+.summary { padding: 16px; }
+.macro-ring-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.macro-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 8px; text-align: center; position: relative; overflow: hidden; }
+.macro-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.macro-card.cal::before { background: var(--cal-color); }
+.macro-card.prot::before { background: var(--prot-color); }
+.macro-card.carb::before { background: var(--carb-color); }
+.macro-card.fat::before { background: var(--fat-color); }
+.macro-val { font-size: 1.25rem; font-weight: 800; font-family: 'DM Mono', monospace; }
+.macro-val.cal { color: var(--cal-color); }
+.macro-val.prot { color: var(--prot-color); }
+.macro-val.carb { color: var(--carb-color); }
+.macro-val.fat { color: var(--fat-color); }
+.macro-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.macro-goal { font-size: 0.62rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+.progress-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; }
+.prog-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.prog-row:last-child { margin-bottom: 0; }
+.prog-name { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; width: 50px; flex-shrink: 0; }
+.prog-bar-wrap { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.prog-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; min-width: 0; max-width: 100%; }
+.prog-bar.cal { background: var(--cal-color); }
+.prog-bar.prot { background: var(--prot-color); }
+.prog-bar.carb { background: var(--carb-color); }
+.prog-bar.fat { background: var(--fat-color); }
+.prog-nums { font-size: 0.65rem; font-family: 'DM Mono', monospace; color: var(--muted); width: 80px; text-align: right; flex-shrink: 0; }
+
+.meal-section { margin: 0 16px 12px; }
+.meal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.meal-title { font-size: 0.85rem; font-weight: 700; }
+.meal-cals { font-size: 0.75rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+.add-to-meal { background: var(--accent); color: var(--bg); border: none; border-radius: 8px; padding: 5px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: 'Syne', sans-serif; }
+
+.food-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+.food-info { flex: 1; }
+.food-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+.food-qty { font-size: 0.7rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+.food-macros { display: flex; gap: 5px; font-size: 0.65rem; font-family: 'DM Mono', monospace; flex-wrap: wrap; }
+.food-macros span { padding: 1px 5px; border-radius: 4px; }
+.food-macros .c { background: rgba(240,160,96,0.15); color: var(--cal-color); }
+.food-macros .p { background: rgba(96,200,240,0.15); color: var(--prot-color); }
+.food-macros .g { background: rgba(200,240,96,0.15); color: var(--carb-color); }
+.food-macros .l { background: rgba(240,96,168,0.15); color: var(--fat-color); }
+.del-btn { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 4px; line-height: 1; flex-shrink: 0; }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.25s; backdrop-filter: blur(4px); }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + var(--safe-bottom)); width: 100%; max-height: 88dvh; display: flex; flex-direction: column; transform: translateY(30px); transition: transform 0.25s; }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+.modal-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+.search-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 0.9rem; font-family: 'Syne', sans-serif; outline: none; margin-bottom: 12px; }
+.search-input:focus { border-color: var(--accent); }
+.food-list { overflow-y: auto; flex: 1; }
+.food-list-item { padding: 10px 12px; border-radius: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s; border-bottom: 1px solid var(--border); }
+.food-list-item:active { background: var(--surface2); }
+.fli-name { font-size: 0.85rem; font-weight: 600; }
+.fli-sub { font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
+.fli-cal { font-size: 0.8rem; font-weight: 700; color: var(--cal-color); font-family: 'DM Mono', monospace; white-space: nowrap; margin-left: 8px; }
+
+.qty-modal { background: var(--surface); border-radius: 20px 20px 0 0; padding: 20px 20px calc(20px + var(--safe-bottom)); width: 100%; transform: translateY(30px); transition: transform 0.25s; }
+.modal-overlay.open .qty-modal { transform: translateY(0); }
+.selected-food-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+.selected-food-cals { font-size: 0.78rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 16px; }
+.qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.qty-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 1.1rem; font-weight: 700; font-family: 'DM Mono', monospace; text-align: center; outline: none; }
+.qty-input:focus { border-color: var(--accent); }
+.qty-unit { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.qty-preview { background: var(--bg); border-radius: 10px; padding: 12px; display: flex; justify-content: space-around; margin-bottom: 16px; }
+.qp-item { text-align: center; }
+.qp-val { font-size: 1rem; font-weight: 800; font-family: 'DM Mono', monospace; }
+.qp-lbl { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.confirm-btn { width: 100%; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; padding: 14px; font-size: 1rem; font-weight: 800; cursor: pointer; font-family: 'Syne', sans-serif; }
+.cancel-btn { width: 100%; background: none; border: none; color: var(--muted); font-size: 0.85rem; cursor: pointer; padding: 10px; font-family: 'Syne', sans-serif; }
+
+.goals-page { padding: 16px; }
+.goals-page h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 16px; }
+.goal-field { margin-bottom: 14px; }
+.goal-field label { display: block; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.goal-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 1rem; font-family: 'DM Mono', monospace; font-weight: 700; outline: none; }
+.goal-input:focus { border-color: var(--accent); }
+.save-btn { width: 100%; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; padding: 14px; font-size: 1rem; font-weight: 800; cursor: pointer; font-family: 'Syne', sans-serif; margin-top: 8px; }
+.section-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 12px 16px 6px; }
+
+.history-page { padding: 16px; }
+.history-page h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 16px; }
+.history-day { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
+.hd-date { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; text-transform: capitalize; }
+.hd-macros { display: flex; gap: 10px; font-size: 0.7rem; font-family: 'DM Mono', monospace; flex-wrap: wrap; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-state .emoji { font-size: 2.5rem; margin-bottom: 12px; }
+.empty-state p { font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">Nutri<span>Track</span></div>
+    <div class="date-nav">
+      <button onclick="changeDay(-1)">‹</button>
+      <div id="current-date"></div>
+      <button onclick="changeDay(1)">›</button>
+    </div>
+  </header>
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('journal',this)">Journal</button>
+    <button class="tab" onclick="showPage('stats',this)">Stats</button>
+    <button class="tab" onclick="showPage('goals',this)">Objectifs</button>
+  </div>
+  <main>
+    <div class="page active" id="page-journal">
+      <div class="summary">
+        <div class="macro-ring-row">
+          <div class="macro-card cal">
+            <div class="macro-val cal" id="sum-cal">0</div>
+            <div class="macro-label">kcal</div>
+            <div class="macro-goal" id="goal-cal-display">/ 2000</div>
+          </div>
+          <div class="macro-card prot">
+            <div class="macro-val prot" id="sum-prot">0g</div>
+            <div class="macro-label">Protéines</div>
+            <div class="macro-goal" id="goal-prot-display">/ 150g</div>
+          </div>
+          <div class="macro-card carb">
+            <div class="macro-val carb" id="sum-carb">0g</div>
+            <div class="macro-label">Glucides</div>
+            <div class="macro-goal" id="goal-carb-display">/ 200g</div>
+          </div>
+          <div class="macro-card fat">
+            <div class="macro-val fat" id="sum-fat">0g</div>
+            <div class="macro-label">Lipides</div>
+            <div class="macro-goal" id="goal-fat-display">/ 70g</div>
+          </div>
+        </div>
+        <div class="progress-section">
+          <div class="prog-row">
+            <div class="prog-name" style="color:var(--cal-color)">Kcal</div>
+            <div class="prog-bar-wrap"><div class="prog-bar cal" id="bar-cal" style="width:0%"></div></div>
+            <div class="prog-nums" id="pn-cal">0 / 2000</div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-name" style="color:var(--prot-color)">Prot.</div>
+            <div class="prog-bar-wrap"><div class="prog-bar prot" id="bar-prot" style="width:0%"></div></div>
+            <div class="prog-nums" id="pn-prot">0 / 150g</div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-name" style="color:var(--carb-color)">Gluc.</div>
+            <div class="prog-bar-wrap"><div class="prog-bar carb" id="bar-carb" style="width:0%"></div></div>
+            <div class="prog-nums" id="pn-carb">0 / 200g</div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-name" style="color:var(--fat-color)">Lip.</div>
+            <div class="prog-bar-wrap"><div class="prog-bar fat" id="bar-fat" style="width:0%"></div></div>
+            <div class="prog-nums" id="pn-fat">0 / 70g</div>
+          </div>
+        </div>
+      </div>
+      <div class="section-title">Repas du jour</div>
+      <div id="meals-container"></div>
+    </div>
+    <div class="page" id="page-stats">
+      <div class="history-page">
+        <h2>Historique</h2>
+        <div id="history-list"></div>
+      </div>
+    </div>
+    <div class="page" id="page-goals">
+      <div class="goals-page">
+        <h2>Mes objectifs</h2>
+        <div class="goal-field"><label>Calories (kcal)</label><input class="goal-input" id="g-cal" type="number" placeholder="2000"/></div>
+        <div class="goal-field"><label>Protéines (g)</label><input class="goal-input" id="g-prot" type="number" placeholder="150"/></div>
+        <div class="goal-field"><label>Glucides (g)</label><input class="goal-input" id="g-carb" type="number" placeholder="200"/></div>
+        <div class="goal-field"><label>Lipides (g)</label><input class="goal-input" id="g-fat" type="number" placeholder="70"/></div>
+        <button class="save-btn" id="save-goals-btn" onclick="saveGoals()">Enregistrer</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- SEARCH MODAL -->
+<div class="modal-overlay" id="search-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Ajouter un aliment</div>
+    <input class="search-input" id="food-search" placeholder="Rechercher..." oninput="filterFoods(this.value)" autocomplete="off" autocorrect="off"/>
+    <div class="food-list" id="food-list-container"></div>
+  </div>
+</div>
+
+<!-- QTY MODAL -->
+<div class="modal-overlay" id="qty-modal">
+  <div class="qty-modal">
+    <div class="modal-handle"></div>
+    <div class="selected-food-name" id="qty-food-name"></div>
+    <div class="selected-food-cals" id="qty-food-info"></div>
+    <div class="qty-row">
+      <input class="qty-input" id="qty-input" type="number" value="100" min="1" max="2000" inputmode="decimal" oninput="updateQtyPreview()"/>
+      <span class="qty-unit">grammes</span>
+    </div>
+    <div class="qty-preview">
+      <div class="qp-item"><div class="qp-val" id="qp-cal" style="color:var(--cal-color)">0</div><div class="qp-lbl">kcal</div></div>
+      <div class="qp-item"><div class="qp-val" id="qp-prot" style="color:var(--prot-color)">0g</div><div class="qp-lbl">prot</div></div>
+      <div class="qp-item"><div class="qp-val" id="qp-carb" style="color:var(--carb-color)">0g</div><div class="qp-lbl">gluc</div></div>
+      <div class="qp-item"><div class="qp-val" id="qp-fat" style="color:var(--fat-color)">0g</div><div class="qp-lbl">lip</div></div>
+    </div>
+    <button class="confirm-btn" onclick="confirmAdd()">Ajouter au repas</button>
+    <button class="cancel-btn" onclick="closeQtyModal()">Annuler</button>
+  </div>
+</div>
+
+<script>
+// ===== DATABASE =====
+// [nom, kcal, proteines, glucides, lipides] pour 100g — source CIQUAL/USDA
+const FOODS = [
+  // FRUITS
+  ["Pomme",52,0.3,13.8,0.2],["Poire",57,0.4,15.2,0.1],["Banane",89,1.1,22.8,0.3],
+  ["Orange",47,0.9,11.8,0.1],["Clémentine",53,0.9,12.8,0.1],["Kiwi",61,1.1,14.7,0.5],
+  ["Fraise",32,0.7,7.7,0.3],["Framboise",52,1.2,11.9,0.7],["Myrtille",57,0.7,14.5,0.3],
+  ["Cerise",63,1.1,16.0,0.2],["Raisin",69,0.7,18.1,0.2],["Pastèque",30,0.6,7.6,0.2],
+  ["Melon",34,0.8,8.2,0.2],["Mangue",60,0.8,15.0,0.4],["Ananas",50,0.5,13.1,0.1],
+  ["Pamplemousse",42,0.8,10.7,0.1],["Citron",29,1.1,9.3,0.3],["Avocat",160,2.0,8.5,14.7],
+  ["Abricot",48,1.4,11.1,0.4],["Pêche",39,0.9,9.5,0.3],["Prune",46,0.7,11.4,0.3],
+  ["Figue fraîche",74,0.8,19.2,0.3],["Grenade",83,1.7,18.7,1.2],["Papaye",43,0.5,10.8,0.3],
+  ["Litchi",66,0.8,16.5,0.4],["Noix de coco (pulpe)",354,3.3,15.2,33.5],
+  // LÉGUMES
+  ["Tomate",18,0.9,3.9,0.2],["Concombre",15,0.7,3.6,0.1],["Courgette",17,1.2,3.1,0.3],
+  ["Aubergine",25,1.0,5.9,0.2],["Poivron rouge",31,1.0,6.0,0.3],["Poivron vert",20,0.9,4.6,0.2],
+  ["Poivron jaune",27,1.0,6.3,0.2],["Carotte",41,0.9,9.6,0.2],["Céleri branche",16,0.7,3.0,0.2],
+  ["Radis",16,0.7,3.4,0.1],["Laitue",15,1.4,2.9,0.2],["Épinard cru",23,2.9,3.6,0.4],
+  ["Brocoli",34,2.8,6.6,0.4],["Chou-fleur",25,1.9,5.0,0.3],["Chou blanc",25,1.3,5.8,0.1],
+  ["Chou rouge",31,1.5,7.4,0.1],["Chou de Bruxelles",43,3.4,8.9,0.3],["Chou frisé (kale)",49,4.3,8.8,0.9],
+  ["Asperge",20,2.2,3.9,0.1],["Artichaut",47,3.3,10.5,0.2],["Poireau",61,1.5,14.2,0.3],
+  ["Oignon",40,1.1,9.3,0.1],["Ail",149,6.4,33.1,0.5],["Échalote",72,2.5,16.8,0.1],
+  ["Champignon de Paris",22,3.1,3.3,0.3],["Champignon shiitake",34,2.2,6.8,0.5],
+  ["Betterave rouge cuite",44,1.7,9.8,0.2],["Céleri-rave cru",42,1.5,9.2,0.3],
+  ["Fenouil",31,1.2,7.3,0.2],["Endive",17,0.9,4.0,0.1],["Mâche",21,2.0,3.6,0.4],
+  ["Roquette",25,2.6,3.7,0.7],["Haricot vert cuit",35,1.9,7.9,0.1],["Petit pois cuit",81,5.4,14.5,0.4],
+  ["Maïs en grains",86,3.2,19.0,1.2],["Navet cuit",21,0.9,4.6,0.1],["Panais cuit",71,1.6,17.0,0.3],
+  ["Courge butternut cuite",45,1.0,11.7,0.1],["Potiron cuit",26,1.0,6.5,0.1],["Patate douce cuite",90,2.0,20.7,0.1],
+  // FÉCULENTS
+  ["Riz blanc cuit",130,2.7,28.2,0.3],["Riz complet cuit",123,2.6,25.6,1.0],
+  ["Pâtes cuites (blé dur)",158,5.8,30.9,0.9],["Pâtes complètes cuites",147,5.5,27.9,0.9],
+  ["Pain blanc",265,8.0,53.9,1.2],["Pain complet",247,9.0,47.9,2.0],["Pain de seigle",258,8.5,52.5,1.7],
+  ["Baguette",275,9.0,57.0,1.2],["Pain de mie",265,8.0,49.0,3.5],
+  ["Pomme de terre cuite (eau)",77,2.0,17.0,0.1],["Pomme de terre vapeur",75,2.0,17.0,0.1],
+  ["Frites",274,3.5,36.0,13.0],["Flocons d'avoine",368,13.5,66.3,7.1],
+  ["Quinoa cuit",120,4.4,21.3,1.9],["Boulgour cuit",83,3.1,18.6,0.2],
+  ["Semoule de blé cuite",105,3.5,21.5,0.3],["Millet cuit",119,3.5,23.7,1.0],
+  ["Polenta cuite",70,1.7,15.7,0.4],["Galette de riz nature",390,7.0,81.6,3.5],
+  ["Corn flakes",375,7.0,84.0,0.8],["Muesli nature",365,10.0,67.0,7.0],
+  ["Farine de blé T55",354,10.0,74.0,1.2],["Chapelure",395,12.0,77.0,4.0],
+  // LÉGUMINEUSES
+  ["Lentilles cuites",116,9.0,20.1,0.4],["Lentilles corail cuites",105,7.9,17.5,0.5],
+  ["Pois chiches cuits",164,8.9,27.4,2.6],["Haricots rouges cuits",127,8.7,22.8,0.5],
+  ["Haricots blancs cuits",124,8.0,22.3,0.6],["Pois cassés cuits",118,8.3,21.1,0.4],
+  ["Fèves cuites",110,7.6,19.7,0.5],["Flageolets cuits",124,8.5,22.0,0.8],
+  ["Tofu ferme",76,8.1,1.9,4.2],["Edamame",122,11.9,8.9,5.2],["Tempeh",193,20.3,9.4,10.8],
+  // VIANDES
+  ["Poulet (blanc, cuit)",165,31.0,0.0,3.6],["Poulet (cuisse, cuit)",190,27.0,0.0,9.0],
+  ["Dinde (blanc, cuit)",153,29.9,0.0,3.2],["Bœuf (steak 5% MG, cuit)",170,28.0,0.0,6.0],
+  ["Bœuf (haché 10% MG, cuit)",200,26.0,0.0,10.5],["Bœuf (haché 15% MG, cuit)",230,25.0,0.0,14.0],
+  ["Bœuf (entrecôte, cuite)",270,24.0,0.0,18.0],["Bœuf (rosbif, cuit)",180,27.0,0.0,7.5],
+  ["Veau (escalope, cuite)",175,28.0,0.0,6.5],["Porc (filet, cuit)",185,30.0,0.0,7.0],
+  ["Porc (côte, cuite)",260,26.0,0.0,17.0],["Porc (rôti, cuit)",200,29.0,0.0,9.0],
+  ["Agneau (côtelette, cuite)",305,25.0,0.0,22.0],["Agneau (gigot, cuit)",230,28.0,0.0,13.0],
+  ["Lapin (cuit)",183,28.0,0.0,7.5],["Canard (magret, cuit)",225,22.0,0.0,15.0],
+  // CHARCUTERIE
+  ["Jambon blanc (sans couenne)",107,18.0,1.0,3.5],["Jambon cru (parme, serrano)",239,25.9,0.3,15.0],
+  ["Lardons fumés",350,18.0,0.5,30.0],["Saucisse de Francfort",270,11.0,2.0,24.0],
+  ["Saucisse de Toulouse cuite",290,17.0,2.5,24.0],["Merguez grillée",285,17.0,2.0,24.0],
+  ["Chipolata grillée",305,16.5,2.5,26.0],["Boudin noir cuit",284,16.0,10.0,20.0],
+  ["Chorizo",393,22.6,2.0,34.0],["Saucisson sec",435,27.0,1.5,36.0],
+  ["Rillettes de porc",414,20.0,0.5,37.0],["Pâté de campagne",310,17.0,4.0,26.0],
+  // POISSONS
+  ["Saumon cuit",208,27.0,0.0,10.5],["Saumon fumé",170,25.4,0.0,7.8],
+  ["Thon en boîte (au naturel)",116,25.5,0.0,1.0],["Thon frais grillé",184,30.0,0.0,6.6],
+  ["Cabillaud cuit",105,23.0,0.0,1.2],["Colin cuit",98,22.0,0.0,0.7],
+  ["Sole cuite",92,19.9,0.0,1.2],["Sardine en boîte (huile)",208,24.6,0.0,11.5],
+  ["Sardine fraîche grillée",185,21.5,0.0,10.5],["Maquereau cuit",232,21.5,0.0,15.9],
+  ["Truite cuite",170,26.0,0.0,7.0],["Dorade grillée",128,23.0,0.0,4.0],
+  ["Bar grillé",124,23.5,0.0,3.5],["Hareng fumé",215,23.0,0.0,13.5],
+  ["Anchois à l'huile",210,29.0,0.0,10.5],
+  // FRUITS DE MER
+  ["Crevettes cuites",99,21.3,0.9,1.1],["Moules cuites",95,13.7,3.7,2.7],
+  ["Coquilles Saint-Jacques cuites",97,18.1,4.0,1.4],["Calamar cuit",92,19.0,1.5,1.3],
+  ["Poulpe cuit",82,14.9,2.2,1.0],["Huîtres crues",59,6.1,4.7,1.3],
+  ["Surimi",97,8.6,12.5,1.0],
+  // OEUFS
+  ["Œuf entier cuit",155,12.6,1.1,10.6],["Blanc d'œuf cuit",52,10.9,0.7,0.2],
+  ["Jaune d'œuf",322,15.9,3.6,26.5],["Omelette nature",185,12.0,0.5,15.0],
+  // PRODUITS LAITIERS
+  ["Lait entier",61,3.2,4.8,3.4],["Lait demi-écrémé",46,3.2,4.7,1.6],
+  ["Lait écrémé",34,3.4,5.0,0.1],["Yaourt nature (entier)",61,3.8,4.7,3.0],
+  ["Yaourt nature (0%)",45,4.4,5.5,0.1],["Yaourt grec (entier)",97,9.0,3.6,5.0],
+  ["Yaourt grec (0%)",57,9.9,4.0,0.2],["Skyr nature",63,11.0,4.0,0.2],
+  ["Fromage blanc (0%)",45,8.0,4.5,0.2],["Fromage blanc (3%)",70,7.5,4.5,3.0],
+  ["Petits-suisses nature",105,7.2,4.0,6.5],
+  ["Emmental",382,28.7,0.5,29.7],["Gruyère",413,29.8,0.4,32.3],["Comté",409,27.4,0.1,33.0],
+  ["Gouda",356,24.9,0.6,27.4],["Edam",314,24.5,0.5,23.0],["Cheddar",403,25.0,0.5,33.1],
+  ["Mozzarella",250,18.9,2.2,19.9],["Parmesan",431,38.5,3.2,28.8],
+  ["Roquefort",369,22.0,2.0,31.0],["Camembert",271,20.0,0.5,21.0],
+  ["Brie",334,20.8,0.5,27.7],["Munster",297,21.1,0.5,23.5],
+  ["Feta",264,14.2,4.1,21.3],["Ricotta",174,11.3,3.0,13.0],
+  ["Mascarpone",429,4.7,4.5,44.0],["Crème fraîche entière",292,2.3,3.5,30.0],
+  ["Crème fraîche légère (15%)",166,3.0,3.7,15.0],
+  ["Beurre",717,0.9,0.7,81.1],["Beurre demi-sel",714,0.9,0.6,80.5],
+  // HUILES & MG
+  ["Huile d'olive",884,0.0,0.0,100.0],["Huile de tournesol",884,0.0,0.0,100.0],
+  ["Huile de colza",884,0.0,0.0,100.0],["Huile de noix de coco",862,0.0,0.0,100.0],
+  ["Margarine",719,0.2,0.7,80.0],["Ghee",900,0.0,0.0,99.8],
+  // NOIX & GRAINES
+  ["Amandes",579,21.2,21.7,49.9],["Noix",654,15.2,13.7,65.2],
+  ["Noix de cajou",553,18.2,30.2,43.9],["Pistaches",562,20.2,27.5,45.3],
+  ["Noisettes",628,15.0,16.7,60.8],["Noix de pécan",691,9.2,13.9,72.0],
+  ["Noix du Brésil",659,14.3,12.3,67.1],["Macadamia",718,7.9,13.8,75.8],
+  ["Cacahuètes grillées",567,25.8,21.5,49.2],["Beurre de cacahuète",588,25.1,20.0,50.4],
+  ["Beurre d'amande",614,21.0,20.0,55.0],["Graines de tournesol",584,20.8,20.0,51.5],
+  ["Graines de sésame",573,17.7,23.5,49.7],["Graines de chia",486,16.5,42.1,30.7],
+  ["Graines de lin",534,18.3,28.9,42.2],["Graines de courge",559,30.2,10.7,49.1],
+  // SUCRES & DOUCEURS
+  ["Sucre blanc",400,0.0,100.0,0.0],["Sucre roux",398,0.0,99.0,0.0],
+  ["Miel",304,0.3,82.4,0.0],["Confiture fraise",250,0.5,64.0,0.0],
+  ["Nutella",539,6.3,57.5,30.9],["Chocolat noir 70%",598,7.8,45.9,42.6],
+  ["Chocolat au lait",535,7.7,56.9,29.7],["Chocolat blanc",539,5.9,59.2,32.1],
+  ["Glace vanille",207,3.5,23.6,11.0],["Sorbet citron",107,0.5,27.2,0.1],
+  // BOISSONS
+  ["Jus d'orange frais",45,0.7,10.4,0.2],["Jus de pomme",46,0.1,11.3,0.1],
+  ["Coca-Cola",42,0.0,10.6,0.0],["Coca-Cola Zero",0,0.0,0.0,0.0],
+  ["Bière (5%)",43,0.4,4.6,0.0],["Vin rouge",85,0.1,2.6,0.0],
+  ["Vin blanc",82,0.1,3.0,0.0],["Champagne",76,0.3,3.8,0.0],
+  ["Lait de soja",33,3.3,1.8,1.8],["Lait d'amande",13,0.5,0.6,1.1],
+  ["Lait d'avoine",45,0.8,8.7,1.0],["Café noir (expresso)",2,0.1,0.0,0.0],
+  ["Thé noir infusé",1,0.0,0.3,0.0],["Thé vert infusé",1,0.0,0.3,0.0],
+  // PRODUITS TRANSFORMÉS
+  ["Pizza margherita (surgelée)",220,9.0,28.0,8.0],["Pizza 4 fromages (surgelée)",265,12.0,27.0,12.0],
+  ["Lasagnes bolognaise (surgelées)",133,8.0,14.0,4.5],["Nuggets de poulet (cuits)",266,17.0,18.0,14.0],
+  ["Hamburger (pain + steak)",295,17.0,28.0,12.0],["Cheeseburger",309,17.5,27.5,13.5],
+  ["Hot-dog",289,12.0,26.0,15.0],["Kebab (viande + pain)",250,16.0,22.0,10.5],
+  ["Quiche lorraine",308,9.5,18.5,22.0],["Croque-monsieur",280,16.0,24.0,13.0],
+  ["Sandwich jambon-beurre",225,11.0,25.0,9.0],["Wrap poulet-crudités",210,14.0,25.0,6.0],
+  ["Soupe de légumes",35,1.2,6.5,0.5],["Velouté de tomates",50,1.0,8.0,1.5],
+  ["Raviolis en boîte",91,3.6,14.0,2.3],
+  // SNACKS & APÉRO
+  ["Chips nature",536,6.5,53.0,34.6],["Crackers nature",430,9.0,66.0,14.0],
+  ["Biscuits apéro",472,8.0,63.0,21.0],["Olives noires",145,1.0,3.8,15.3],
+  ["Olives vertes",145,1.1,0.5,15.5],["Houmous",177,7.9,14.3,9.6],
+  ["Guacamole",157,2.0,8.8,14.5],["Tarama",330,8.0,2.0,32.0],
+  ["Popcorn nature",375,11.4,74.1,5.0],["Nems cuits",225,7.5,22.0,12.0],
+  // VIENNOISERIE & PÂTISSERIE
+  ["Croissant",406,8.0,46.0,21.0],["Pain au chocolat",390,8.5,46.0,20.0],
+  ["Brioche",390,9.0,48.0,19.0],["Madeleine",430,6.5,56.0,20.0],
+  ["Cookie chocolat",480,6.5,62.0,23.0],["Tarte aux pommes",220,2.5,32.0,9.0],
+  ["Éclair au chocolat",289,5.0,35.0,14.0],["Crêpe nature",205,5.3,26.0,8.0],
+  ["Gaufre",282,5.5,35.0,13.0],["Financier",445,8.0,50.0,25.0],
+  // CONDIMENTS
+  ["Ketchup",101,1.0,25.5,0.1],["Moutarde",67,4.4,6.4,3.3],
+  ["Mayonnaise",680,1.5,3.5,74.0],["Sauce vinaigrette",496,0.2,3.4,53.0],
+  ["Sauce tomate cuisinée",65,2.0,11.0,1.5],["Sauce béchamel",110,3.5,10.0,6.0],
+  ["Sauce soja",60,5.6,5.6,0.1],["Sauce pesto",449,6.0,5.0,45.0],
+  ["Sauce BBQ",119,0.8,28.0,0.5],["Vinaigre balsamique",88,0.5,17.0,0.0],
+  // SUPPLÉMENTS
+  ["Whey protéine (vanille)",370,74.0,8.0,5.0],["Caséine (chocolat)",358,77.0,5.0,4.5],
+  ["Barre protéinée",350,33.0,32.0,10.0],["Chocolat chaud (lait entier)",72,3.2,9.0,2.8],
+];
+
+// ===== STATE =====
+let currentDate = new Date();
+let log = {};
+let goals = { cal: 2000, prot: 150, carb: 200, fat: 70 };
+let selectedMeal = null;
+let selectedFood = null;
+
+const MEAL_TYPES = [
+  { id: 'breakfast', label: '🌅 Petit-déjeuner' },
+  { id: 'lunch',     label: '☀️ Déjeuner' },
+  { id: 'snack',     label: '🍎 Collation' },
+  { id: 'dinner',    label: '🌙 Dîner' },
+];
+
+const formatDate = d => d.toISOString().split('T')[0];
+
+function displayDate(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dd = new Date(d); dd.setHours(0,0,0,0);
+  const diff = Math.round((dd-today)/86400000);
+  if (diff===0) return "Aujourd'hui";
+  if (diff===-1) return "Hier";
+  if (diff===1) return "Demain";
+  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+}
+
+// ===== STORAGE =====
+function save() {
+  try {
+    localStorage.setItem('nt_log', JSON.stringify(log));
+    localStorage.setItem('nt_goals', JSON.stringify(goals));
+  } catch(e) {}
+}
+function load() {
+  try { log = JSON.parse(localStorage.getItem('nt_log'))||{}; } catch(e) { log={}; }
+  try { const g=JSON.parse(localStorage.getItem('nt_goals')); if(g) goals=g; } catch(e) {}
+}
+
+// ===== HELPERS =====
+function getDayLog() {
+  const d = formatDate(currentDate);
+  if (!log[d]) log[d] = { meals: MEAL_TYPES.map(m=>({id:m.id,label:m.label,items:[]})) };
+  return log[d];
+}
+function calcItem(item) {
+  const r = item.qty/100;
+  return { cal:item.food[1]*r, prot:item.food[2]*r, carb:item.food[3]*r, fat:item.food[4]*r };
+}
+function calcDay(dl) {
+  const t={cal:0,prot:0,carb:0,fat:0};
+  if (!dl) return t;
+  dl.meals.forEach(m=>m.items.forEach(i=>{const c=calcItem(i);t.cal+=c.cal;t.prot+=c.prot;t.carb+=c.carb;t.fat+=c.fat;}));
+  return t;
+}
+
+// ===== RENDER =====
+function render() {
+  document.getElementById('current-date').textContent = displayDate(currentDate);
+  renderSummary();
+  renderMeals();
+  renderGoalsForm();
+}
+
+function renderSummary() {
+  const t = calcDay(getDayLog());
+  document.getElementById('sum-cal').textContent = Math.round(t.cal);
+  document.getElementById('sum-prot').textContent = Math.round(t.prot)+'g';
+  document.getElementById('sum-carb').textContent = Math.round(t.carb)+'g';
+  document.getElementById('sum-fat').textContent = Math.round(t.fat)+'g';
+  document.getElementById('goal-cal-display').textContent = '/ '+goals.cal;
+  document.getElementById('goal-prot-display').textContent = '/ '+goals.prot+'g';
+  document.getElementById('goal-carb-display').textContent = '/ '+goals.carb+'g';
+  document.getElementById('goal-fat-display').textContent = '/ '+goals.fat+'g';
+  const pct=(v,g)=>Math.min(100,Math.round(v/g*100))+'%';
+  document.getElementById('bar-cal').style.width=pct(t.cal,goals.cal);
+  document.getElementById('bar-prot').style.width=pct(t.prot,goals.prot);
+  document.getElementById('bar-carb').style.width=pct(t.carb,goals.carb);
+  document.getElementById('bar-fat').style.width=pct(t.fat,goals.fat);
+  document.getElementById('pn-cal').textContent=Math.round(t.cal)+' / '+goals.cal;
+  document.getElementById('pn-prot').textContent=Math.round(t.prot)+' / '+goals.prot+'g';
+  document.getElementById('pn-carb').textContent=Math.round(t.carb)+' / '+goals.carb+'g';
+  document.getElementById('pn-fat').textContent=Math.round(t.fat)+' / '+goals.fat+'g';
+}
+
+function renderMeals() {
+  const day = getDayLog();
+  const container = document.getElementById('meals-container');
+  container.innerHTML='';
+  day.meals.forEach((meal,mi)=>{
+    const totCal = meal.items.reduce((a,i)=>a+calcItem(i).cal,0);
+    const sec=document.createElement('div'); sec.className='meal-section';
+    sec.innerHTML=`<div class="meal-header">
+      <div class="meal-title">${meal.label}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="meal-cals">${Math.round(totCal)} kcal</span>
+        <button class="add-to-meal" onclick="openSearch(${mi})">+ Ajouter</button>
+      </div>
+    </div>`;
+    if (meal.items.length===0) {
+      const e=document.createElement('div');
+      e.style.cssText='padding:8px 0 4px;color:var(--muted);font-size:0.78rem;';
+      e.textContent='Vide'; sec.appendChild(e);
+    }
+    meal.items.forEach((item,ii)=>{
+      const c=calcItem(item);
+      const div=document.createElement('div'); div.className='food-item';
+      div.innerHTML=`<div class="food-info">
+        <div class="food-name">${item.food[0]}</div>
+        <div class="food-qty">${item.qty}g</div>
+        <div class="food-macros">
+          <span class="c">${Math.round(c.cal)} kcal</span>
+          <span class="p">P ${Math.round(c.prot)}g</span>
+          <span class="g">G ${Math.round(c.carb)}g</span>
+          <span class="l">L ${Math.round(c.fat)}g</span>
+        </div>
+      </div>
+      <button class="del-btn" onclick="deleteItem(${mi},${ii})">✕</button>`;
+      sec.appendChild(div);
+    });
+    container.appendChild(sec);
+  });
+}
+
+function renderGoalsForm() {
+  document.getElementById('g-cal').value=goals.cal;
+  document.getElementById('g-prot').value=goals.prot;
+  document.getElementById('g-carb').value=goals.carb;
+  document.getElementById('g-fat').value=goals.fat;
+}
+
+function renderHistory() {
+  const container=document.getElementById('history-list');
+  const keys=Object.keys(log).sort((a,b)=>b.localeCompare(a));
+  if (!keys.length) {
+    container.innerHTML='<div class="empty-state"><div class="emoji">📭</div><p>Aucun historique pour le moment</p></div>';
+    return;
+  }
+  container.innerHTML=keys.map(k=>{
+    const t=calcDay(log[k]);
+    const d=new Date(k);
+    const label=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    return `<div class="history-day">
+      <div class="hd-date">${label}</div>
+      <div class="hd-macros">
+        <span style="color:var(--cal-color)">${Math.round(t.cal)} kcal</span>
+        <span style="color:var(--prot-color)">P ${Math.round(t.prot)}g</span>
+        <span style="color:var(--carb-color)">G ${Math.round(t.carb)}g</span>
+        <span style="color:var(--fat-color)">L ${Math.round(t.fat)}g</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== ACTIONS =====
+function changeDay(d) {
+  currentDate=new Date(currentDate);
+  currentDate.setDate(currentDate.getDate()+d);
+  render();
+}
+
+function deleteItem(mi,ii) {
+  getDayLog().meals[mi].items.splice(ii,1);
+  save(); render();
+}
+
+function saveGoals() {
+  goals.cal=parseInt(document.getElementById('g-cal').value)||2000;
+  goals.prot=parseInt(document.getElementById('g-prot').value)||150;
+  goals.carb=parseInt(document.getElementById('g-carb').value)||200;
+  goals.fat=parseInt(document.getElementById('g-fat').value)||70;
+  save(); renderSummary();
+  const btn=document.getElementById('save-goals-btn');
+  btn.textContent='✓ Enregistré !';
+  setTimeout(()=>btn.textContent='Enregistrer',1500);
+}
+
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  el.classList.add('active');
+  if (name==='stats') renderHistory();
+}
+
+// ===== SEARCH =====
+function openSearch(mealIdx) {
+  selectedMeal=mealIdx;
+  document.getElementById('food-search').value='';
+  renderFoodList(FOODS);
+  document.getElementById('search-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('food-search').focus(),300);
+}
+
+function filterFoods(q) {
+  const n=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const filtered=n?FOODS.filter(f=>f[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(n)):FOODS;
+  renderFoodList(filtered);
+}
+
+function renderFoodList(foods) {
+  const c=document.getElementById('food-list-container');
+  if (!foods.length) { c.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem;">Aucun résultat</div>'; return; }
+  c.innerHTML=foods.slice(0,100).map(f=>{
+    const idx=FOODS.indexOf(f);
+    return `<div class="food-list-item" onclick="selectFood(${idx})">
+      <div>
+        <div class="fli-name">${f[0]}</div>
+        <div class="fli-sub">P ${f[2]}g · G ${f[3]}g · L ${f[4]}g (100g)</div>
+      </div>
+      <div class="fli-cal">${f[1]} kcal</div>
+    </div>`;
+  }).join('');
+}
+
+function selectFood(idx) {
+  selectedFood=FOODS[idx];
+  document.getElementById('search-modal').classList.remove('open');
+  document.getElementById('qty-food-name').textContent=selectedFood[0];
+  document.getElementById('qty-food-info').textContent=`Pour 100g : ${selectedFood[1]} kcal · P ${selectedFood[2]}g · G ${selectedFood[3]}g · L ${selectedFood[4]}g`;
+  document.getElementById('qty-input').value=100;
+  updateQtyPreview();
+  document.getElementById('qty-modal').classList.add('open');
+  setTimeout(()=>{const i=document.getElementById('qty-input');i.focus();i.select();},300);
+}
+
+function updateQtyPreview() {
+  if (!selectedFood) return;
+  const r=(parseFloat(document.getElementById('qty-input').value)||0)/100;
+  document.getElementById('qp-cal').textContent=Math.round(selectedFood[1]*r);
+  document.getElementById('qp-prot').textContent=Math.round(selectedFood[2]*r)+'g';
+  document.getElementById('qp-carb').textContent=Math.round(selectedFood[3]*r)+'g';
+  document.getElementById('qp-fat').textContent=Math.round(selectedFood[4]*r)+'g';
+}
+
+function confirmAdd() {
+  const qty=parseFloat(document.getElementById('qty-input').value);
+  if (!qty||qty<=0) return;
+  getDayLog().meals[selectedMeal].items.push({food:selectedFood,qty});
+  save(); render(); closeQtyModal();
+}
+
+function closeQtyModal() {
+  document.getElementById('qty-modal').classList.remove('open');
+}
+
+document.getElementById('search-modal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+document.getElementById('qty-modal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+
+// ===== INIT =====
+load(); render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+</script>
+</body>
+</html>
