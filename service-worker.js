@@ -1,17 +1,15 @@
-const CACHE_NAME = 'nutritrack-v2';
+const CACHE_NAME = 'nutritrack-v3';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './icone-192.png',
-  './icone-512.png'
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return Promise.allSettled(ASSETS.map(a => cache.add(a)));
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
   self.skipWaiting();
 });
@@ -26,7 +24,6 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Ne pas mettre en cache les requêtes vers Open Food Facts
   if (e.request.url.includes('openfoodfacts.org')) return;
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
