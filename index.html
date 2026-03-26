@@ -879,7 +879,7 @@ async function searchOFF(query) {
   const status=document.getElementById('search-status');
   const container=document.getElementById('food-list-container');
   try {
-    const url=`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=30&fields=product_name,product_name_fr,brands,nutriments&sort_by=unique_scans_n`;
+    const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(query)}&page_size=30&fields=product_name,product_name_fr,brands,nutriments&sort_by=unique_scans_n`;
     const res=await fetch(url);
     if (!res.ok) throw new Error();
     const data=await res.json();
