@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#0b0d12"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="NutriTracker"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icone-192.png"/>
+<title>NutriTracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0b0d12; --surface: #13161e; --surface2: #1a1e28; --border: #252935;
+  --accent: #c8f060; --text: #e8ecf4; --muted: #6b7280;
+  --cal-color: #f0a060; --prot-color: #60c8f0; --carb-color: #c8f060; --fat-color: #f060a8;
+  --radius: 12px;
+  --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; }
+#app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+header { padding: calc(14px + var(--safe-top)) 20px 12px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.logo { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; }
+.logo span { color: var(--accent); }
+.date-nav { display: flex; align-items: center; gap: 8px; }
+.date-nav button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 8px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+#current-date { font-size: .78rem; font-weight: 600; color: var(--muted); min-width: 88px; text-align: center; }
+.tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.tab { flex: 1; padding: 10px; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; text-align: center; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all .2s; font-family: 'Syne', sans-serif; background: none; border-top: none; border-left: none; border-right: none; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+main { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding-bottom: calc(16px + var(--safe-bottom)); }
+.page { display: none; } .page.active { display: block; }
+.summary { padding: 14px; }
+.macro-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px; }
+.macro-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 6px; text-align: center; position: relative; overflow: hidden; }
+.macro-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.macro-card.cal::before { background: var(--cal-color); } .macro-card.prot::before { background: var(--prot-color); }
+.macro-card.carb::before { background: var(--carb-color); } .macro-card.fat::before { background: var(--fat-color); }
+.macro-val { font-size: 1.2rem; font-weight: 800; font-family: 'DM Mono', monospace; line-height: 1.1; }
+.macro-val.cal { color: var(--cal-color); } .macro-val.prot { color: var(--prot-color); }
+.macro-val.carb { color: var(--carb-color); } .macro-val.fat { color: var(--fat-color); }
+.macro-label { font-size: .57rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.macro-goal { font-size: .6rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+.progress-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.prog-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.prog-row:last-child { margin-bottom: 0; }
+.prog-name { font-size: .67rem; font-weight: 700; text-transform: uppercase; width: 44px; flex-shrink: 0; }
+.prog-bar-wrap { flex: 1; height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.prog-bar { height: 100%; border-radius: 4px; transition: width .5s ease; max-width: 100%; }
+.prog-bar.cal { background: var(--cal-color); } .prog-bar.prot { background: var(--prot-color); }
+.prog-bar.carb { background: var(--carb-color); } .prog-bar.fat { background: var(--fat-color); }
+.prog-nums { font-size: .62rem; font-family: 'DM Mono', monospace; color: var(--muted); width: 78px; text-align: right; flex-shrink: 0; }
+.section-title { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 12px 14px 6px; }
+.meal-section { margin: 0 14px 10px; }
+.meal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.meal-title { font-size: .83rem; font-weight: 700; }
+.meal-cals { font-size: .72rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+.add-to-meal { background: var(--accent); color: var(--bg); border: none; border-radius: 8px; padding: 5px 11px; font-size: .72rem; font-weight: 700; cursor: pointer; font-family: 'Syne', sans-serif; }
+.food-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; margin-bottom: 5px; display: flex; align-items: center; gap: 9px; }
+.food-info { flex: 1; min-width: 0; }
+.food-name { font-size: .82rem; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.food-brand { font-size: .65rem; color: var(--muted); margin-bottom: 2px; }
+.food-qty { font-size: .67rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+.food-macros { display: flex; gap: 4px; font-size: .63rem; font-family: 'DM Mono', monospace; flex-wrap: wrap; margin-top: 3px; }
+.food-macros span { padding: 1px 5px; border-radius: 4px; }
+.food-macros .c { background: rgba(240,160,96,.15); color: var(--cal-color); }
+.food-macros .p { background: rgba(96,200,240,.15); color: var(--prot-color); }
+.food-macros .g { background: rgba(200,240,96,.15); color: var(--carb-color); }
+.food-macros .l { background: rgba(240,96,168,.15); color: var(--fat-color); }
+.del-btn { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; padding: 4px; flex-shrink: 0; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 100; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(5px); }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border-radius: 20px 20px 0 0; padding: 18px 18px calc(18px + var(--safe-bottom)); width: 100%; max-height: 90dvh; display: flex; flex-direction: column; transform: translateY(30px); transition: transform .25s; }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 14px; }
+.modal-title { font-size: .95rem; font-weight: 700; margin-bottom: 10px; }
+.source-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+.src-btn { flex: 1; padding: 7px; border-radius: 8px; font-size: .72rem; font-weight: 700; font-family: 'Syne', sans-serif; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); transition: all .2s; }
+.src-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.cat-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; scrollbar-width: none; }
+.cat-scroll::-webkit-scrollbar { display: none; }
+.cat-btn { flex-shrink: 0; padding: 5px 10px; border-radius: 20px; font-size: .68rem; font-weight: 700; font-family: 'Syne', sans-serif; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); white-space: nowrap; transition: all .2s; }
+.cat-btn.active { background: var(--surface2); color: var(--text); border-color: var(--text); }
+.search-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; color: var(--text); font-size: .88rem; font-family: 'Syne', sans-serif; outline: none; margin-bottom: 8px; }
+.search-input:focus { border-color: var(--accent); }
+.search-status { font-size: .72rem; color: var(--muted); padding: 3px 0 5px; min-height: 20px; }
+.food-list { overflow-y: auto; flex: 1; }
+.food-list-item { padding: 9px 11px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background .15s; border-bottom: 1px solid var(--border); }
+.food-list-item:active { background: var(--surface2); }
+.fli-left { flex: 1; min-width: 0; }
+.fli-name { font-size: .83rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fli-brand { font-size: .63rem; color: var(--muted); }
+.fli-sub { font-size: .63rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 1px; }
+.fli-cal { font-size: .78rem; font-weight: 700; color: var(--cal-color); font-family: 'DM Mono', monospace; white-space: nowrap; margin-left: 8px; }
+.off-badge { display: inline-block; font-size: .55rem; background: rgba(96,200,240,.15); color: var(--prot-color); border-radius: 3px; padding: 1px 4px; margin-left: 5px; font-weight: 700; }
+.qty-modal { background: var(--surface); border-radius: 20px 20px 0 0; padding: 18px 18px calc(18px + var(--safe-bottom)); width: 100%; transform: translateY(30px); transition: transform .25s; }
+.modal-overlay.open .qty-modal { transform: translateY(0); }
+.qty-food-name { font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
+.qty-food-brand { font-size: .72rem; color: var(--muted); margin-bottom: 12px; }
+.qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.qty-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; color: var(--text); font-size: 1.1rem; font-weight: 700; font-family: 'DM Mono', monospace; text-align: center; outline: none; }
+.qty-input:focus { border-color: var(--accent); }
+.qty-unit { color: var(--muted); font-size: .83rem; font-weight: 600; }
+.qty-preview { background: var(--bg); border-radius: 10px; padding: 12px; display: flex; justify-content: space-around; margin-bottom: 14px; }
+.qp-item { text-align: center; }
+.qp-val { font-size: .95rem; font-weight: 800; font-family: 'DM Mono', monospace; }
+.qp-lbl { font-size: .58rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.confirm-btn { width: 100%; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; padding: 14px; font-size: .95rem; font-weight: 800; cursor: pointer; font-family: 'Syne', sans-serif; }
+.cancel-btn { width: 100%; background: none; border: none; color: var(--muted); font-size: .82rem; cursor: pointer; padding: 10px; font-family: 'Syne', sans-serif; }
+.goals-page { padding: 16px; }
+.goals-page h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 16px; }
+.goal-field { margin-bottom: 12px; }
+.goal-field label { display: block; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.goal-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; color: var(--text); font-size: .95rem; font-family: 'DM Mono', monospace; font-weight: 700; outline: none; }
+.goal-input:focus { border-color: var(--accent); }
+.save-btn { width: 100%; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; padding: 14px; font-size: .95rem; font-weight: 800; cursor: pointer; font-family: 'Syne', sans-serif; margin-top: 6px; }
+.history-page { padding: 16px; }
+.history-page h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 14px; }
+.history-day { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 11px 13px; margin-bottom: 9px; }
+.hd-date { font-size: .78rem; font-weight: 700; margin-bottom: 5px; text-transform: capitalize; }
+.hd-macros { display: flex; gap: 10px; font-size: .68rem; font-family: 'DM Mono', monospace; flex-wrap: wrap; }
+.empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+.empty-state .emoji { font-size: 2.5rem; margin-bottom: 10px; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-right: 5px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">Nutri<span>Track</span></div>
+    <div class="date-nav">
+      <button onclick="changeDay(-1)">‹</button>
+      <div id="current-date"></div>
+      <button onclick="changeDay(1)">›</button>
+    </div>
+  </header>
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('journal',this)">Journal</button>
+    <button class="tab" onclick="showPage('stats',this)">Stats</button>
+    <button class="tab" onclick="showPage('goals',this)">Objectifs</button>
+  </div>
+  <main>
+    <div class="page active" id="page-journal">
+      <div class="summary">
+        <div class="macro-grid">
+          <div class="macro-card cal"><div class="macro-val cal" id="sum-cal">0</div><div class="macro-label">kcal</div><div class="macro-goal" id="goal-cal-d">/ 2000</div></div>
+          <div class="macro-card prot"><div class="macro-val prot" id="sum-prot">0g</div><div class="macro-label">Protéines</div><div class="macro-goal" id="goal-prot-d">/ 150g</div></div>
+          <div class="macro-card carb"><div class="macro-val carb" id="sum-carb">0g</div><div class="macro-label">Glucides</div><div class="macro-goal" id="goal-carb-d">/ 200g</div></div>
+          <div class="macro-card fat"><div class="macro-val fat" id="sum-fat">0g</div><div class="macro-label">Lipides</div><div class="macro-goal" id="goal-fat-d">/ 70g</div></div>
+        </div>
+        <div class="progress-section">
+          <div class="prog-row"><div class="prog-name" style="color:var(--cal-color)">Kcal</div><div class="prog-bar-wrap"><div class="prog-bar cal" id="bar-cal" style="width:0%"></div></div><div class="prog-nums" id="pn-cal">0 / 2000</div></div>
+          <div class="prog-row"><div class="prog-name" style="color:var(--prot-color)">Prot.</div><div class="prog-bar-wrap"><div class="prog-bar prot" id="bar-prot" style="width:0%"></div></div><div class="prog-nums" id="pn-prot">0 / 150g</div></div>
+          <div class="prog-row"><div class="prog-name" style="color:var(--carb-color)">Gluc.</div><div class="prog-bar-wrap"><div class="prog-bar carb" id="bar-carb" style="width:0%"></div></div><div class="prog-nums" id="pn-carb">0 / 200g</div></div>
+          <div class="prog-row"><div class="prog-name" style="color:var(--fat-color)">Lip.</div><div class="prog-bar-wrap"><div class="prog-bar fat" id="bar-fat" style="width:0%"></div></div><div class="prog-nums" id="pn-fat">0 / 70g</div></div>
+        </div>
+      </div>
+      <div class="section-title">Repas du jour</div>
+      <div id="meals-container"></div>
+    </div>
+    <div class="page" id="page-stats"><div class="history-page"><h2>Historique</h2><div id="history-list"></div></div></div>
+    <div class="page" id="page-goals">
+      <div class="goals-page">
+        <h2>Mes objectifs</h2>
+        <div class="goal-field"><label>Calories (kcal)</label><input class="goal-input" id="g-cal" type="number" inputmode="numeric"/></div>
+        <div class="goal-field"><label>Protéines (g)</label><input class="goal-input" id="g-prot" type="number" inputmode="numeric"/></div>
+        <div class="goal-field"><label>Glucides (g)</label><input class="goal-input" id="g-carb" type="number" inputmode="numeric"/></div>
+        <div class="goal-field"><label>Lipides (g)</label><input class="goal-input" id="g-fat" type="number" inputmode="numeric"/></div>
+        <button class="save-btn" id="save-goals-btn" onclick="saveGoals()">Enregistrer</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- SEARCH MODAL -->
+<div class="modal-overlay" id="search-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Ajouter un aliment</div>
+    <div class="source-toggle">
+      <button class="src-btn active" id="src-local" onclick="setSource('local')">🥦 Base locale</button>
+      <button class="src-btn" id="src-off" onclick="setSource('off')">🌐 Open Food Facts</button>
+    </div>
+    <div class="cat-scroll" id="cat-scroll"></div>
+    <input class="search-input" id="food-search" placeholder="Rechercher..." autocomplete="off" autocorrect="off" autocapitalize="off"/>
+    <div class="search-status" id="search-status"></div>
+    <div class="food-list" id="food-list-container"></div>
+  </div>
+</div>
+
+<!-- QTY MODAL -->
+<div class="modal-overlay" id="qty-modal">
+  <div class="qty-modal">
+    <div class="modal-handle"></div>
+    <div class="qty-food-name" id="qty-food-name"></div>
+    <div class="qty-food-brand" id="qty-food-brand"></div>
+    <div class="qty-row">
+      <input class="qty-input" id="qty-input" type="number" value="100" min="1" max="2000" inputmode="decimal" oninput="updateQtyPreview()"/>
+      <span class="qty-unit">grammes</span>
+    </div>
+    <div class="qty-preview">
+      <div class="qp-item"><div class="qp-val" id="qp-cal" style="color:var(--cal-color)">0</div><div class="qp-lbl">kcal</div></div>
+      <div class="qp-item"><div class="qp-val" id="qp-prot" style="color:var(--prot-color)">0g</div><div class="qp-lbl">prot</div></div>
+      <div class="qp-item"><div class="qp-val" id="qp-carb" style="color:var(--carb-color)">0g</div><div class="qp-lbl">gluc</div></div>
+      <div class="qp-item"><div class="qp-val" id="qp-fat" style="color:var(--fat-color)">0g</div><div class="qp-lbl">lip</div></div>
+    </div>
+    <button class="confirm-btn" onclick="confirmAdd()">Ajouter au repas</button>
+    <button class="cancel-btn" onclick="closeQtyModal()">Annuler</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// BASE LOCALE — {name, cat, cal, prot, carb, fat} pour 100g — CIQUAL/USDA
+// ============================================================
+const LOCAL_FOODS = [
+
+  // ── VOLAILLES ──────────────────────────────────────────────
+  {name:"Poulet (blanc, cuit à l'eau)",        cat:"Volailles", cal:165, prot:31.0, carb:0.0, fat:3.6},
+  {name:"Poulet (blanc, grillé sans peau)",    cat:"Volailles", cal:165, prot:31.0, carb:0.0, fat:3.6},
+  {name:"Poulet (blanc, rôti)",                cat:"Volailles", cal:172, prot:30.0, carb:0.0, fat:5.0},
+  {name:"Poulet (blanc, poêlé avec huile)",    cat:"Volailles", cal:195, prot:30.0, carb:0.0, fat:8.0},
+  {name:"Poulet (cuisse, cuite sans peau)",    cat:"Volailles", cal:177, prot:25.9, carb:0.0, fat:8.0},
+  {name:"Poulet (cuisse, cuite avec peau)",    cat:"Volailles", cal:218, prot:24.0, carb:0.0, fat:13.2},
+  {name:"Poulet (aile, cuite)",                cat:"Volailles", cal:223, prot:26.0, carb:0.0, fat:13.0},
+  {name:"Poulet (entier, rôti, sans peau)",    cat:"Volailles", cal:190, prot:27.0, carb:0.0, fat:9.0},
+  {name:"Poulet (entier, rôti, avec peau)",    cat:"Volailles", cal:239, prot:25.0, carb:0.0, fat:15.0},
+  {name:"Poulet (cru, sans peau)",             cat:"Volailles", cal:110, prot:22.0, carb:0.0, fat:2.5},
+  {name:"Dinde (blanc, cuit à l'eau)",         cat:"Volailles", cal:153, prot:29.9, carb:0.0, fat:3.2},
+  {name:"Dinde (blanc, rôti)",                 cat:"Volailles", cal:160, prot:29.0, carb:0.0, fat:4.5},
+  {name:"Dinde (cuisse, cuite)",               cat:"Volailles", cal:195, prot:27.0, carb:0.0, fat:9.5},
+  {name:"Dinde (haché, 5% MG, cuit)",          cat:"Volailles", cal:155, prot:29.0, carb:0.0, fat:4.0},
+  {name:"Canard (magret, cuit sans peau)",     cat:"Volailles", cal:190, prot:23.5, carb:0.0, fat:10.5},
+  {name:"Canard (magret, cuit avec peau)",     cat:"Volailles", cal:337, prot:19.0, carb:0.0, fat:28.8},
+  {name:"Canard (confit, cuit)",               cat:"Volailles", cal:369, prot:18.0, carb:0.0, fat:33.0},
+  {name:"Pintade (cuite)",                     cat:"Volailles", cal:170, prot:26.0, carb:0.0, fat:7.0},
+  {name:"Caille (cuite)",                      cat:"Volailles", cal:192, prot:22.0, carb:0.0, fat:11.5},
+  {name:"Poulet pané (industriel, cuit)",      cat:"Volailles", cal:256, prot:18.0, carb:15.0, fat:13.0},
+
+  // ── BŒUF ───────────────────────────────────────────────────
+  {name:"Bœuf (steak, 5% MG, grillé)",        cat:"Bœuf", cal:170, prot:28.0, carb:0.0, fat:6.0},
+  {name:"Bœuf (steak, 10% MG, grillé)",       cat:"Bœuf", cal:200, prot:26.5, carb:0.0, fat:10.0},
+  {name:"Bœuf (steak, 15% MG, grillé)",       cat:"Bœuf", cal:230, prot:25.0, carb:0.0, fat:14.5},
+  {name:"Bœuf (haché, 5% MG, cuit)",          cat:"Bœuf", cal:175, prot:28.0, carb:0.0, fat:6.5},
+  {name:"Bœuf (haché, 10% MG, cuit)",         cat:"Bœuf", cal:200, prot:26.0, carb:0.0, fat:10.5},
+  {name:"Bœuf (haché, 15% MG, cuit)",         cat:"Bœuf", cal:235, prot:25.0, carb:0.0, fat:15.0},
+  {name:"Bœuf (haché, 20% MG, cuit)",         cat:"Bœuf", cal:272, prot:23.5, carb:0.0, fat:19.5},
+  {name:"Bœuf (entrecôte, grillée)",          cat:"Bœuf", cal:271, prot:24.0, carb:0.0, fat:19.0},
+  {name:"Bœuf (faux-filet, grillé)",          cat:"Bœuf", cal:220, prot:26.0, carb:0.0, fat:13.0},
+  {name:"Bœuf (filet, grillé)",               cat:"Bœuf", cal:200, prot:27.0, carb:0.0, fat:9.5},
+  {name:"Bœuf (rosbif, cuit)",                cat:"Bœuf", cal:182, prot:27.0, carb:0.0, fat:7.5},
+  {name:"Bœuf (côte de bœuf, grillée)",       cat:"Bœuf", cal:290, prot:23.0, carb:0.0, fat:22.0},
+  {name:"Bœuf (bifteck, cru, 5% MG)",         cat:"Bœuf", cal:120, prot:21.5, carb:0.0, fat:3.5},
+  {name:"Bœuf (bourguignon, cuit)",           cat:"Bœuf", cal:210, prot:22.0, carb:4.0, fat:11.5},
+  {name:"Bœuf (paleron, braisé)",             cat:"Bœuf", cal:225, prot:24.0, carb:0.0, fat:14.0},
+  {name:"Bœuf (bavette, grillée)",            cat:"Bœuf", cal:195, prot:27.0, carb:0.0, fat:9.5},
+  {name:"Bœuf (onglet, grillé)",              cat:"Bœuf", cal:210, prot:26.0, carb:0.0, fat:11.5},
+  {name:"Bœuf (tartare, cru, 5% MG)",         cat:"Bœuf", cal:120, prot:21.0, carb:0.0, fat:3.6},
+  {name:"Bœuf (foie, sauté)",                 cat:"Bœuf", cal:175, prot:26.0, carb:5.0, fat:5.5},
+
+  // ── PORC ───────────────────────────────────────────────────
+  {name:"Porc (filet, cuit)",                  cat:"Porc", cal:185, prot:30.0, carb:0.0, fat:7.0},
+  {name:"Porc (côte, grillée sans gras)",      cat:"Porc", cal:198, prot:27.0, carb:0.0, fat:9.5},
+  {name:"Porc (côte, grillée avec gras)",      cat:"Porc", cal:280, prot:24.0, carb:0.0, fat:20.0},
+  {name:"Porc (rôti, cuit)",                   cat:"Porc", cal:205, prot:29.0, carb:0.0, fat:9.5},
+  {name:"Porc (échine, cuite)",                cat:"Porc", cal:256, prot:25.0, carb:0.0, fat:17.0},
+  {name:"Porc (jambon cuit, sans couenne)",    cat:"Porc", cal:107, prot:18.0, carb:1.0, fat:3.5},
+  {name:"Porc (travers, cuit)",                cat:"Porc", cal:290, prot:21.0, carb:0.0, fat:23.0},
+  {name:"Porc (épaule, cuite)",                cat:"Porc", cal:240, prot:24.0, carb:0.0, fat:16.0},
+  {name:"Porc (foie, sauté)",                  cat:"Porc", cal:165, prot:25.0, carb:3.8, fat:5.0},
+  {name:"Porc (lard fumé, cuit)",              cat:"Porc", cal:458, prot:14.0, carb:0.0, fat:45.0},
+
+  // ── VEAU ───────────────────────────────────────────────────
+  {name:"Veau (escalope, cuite à la poêle)",   cat:"Veau", cal:182, prot:28.5, carb:0.0, fat:7.0},
+  {name:"Veau (côte, grillée)",                cat:"Veau", cal:213, prot:27.0, carb:0.0, fat:11.5},
+  {name:"Veau (rôti, cuit)",                   cat:"Veau", cal:198, prot:27.5, carb:0.0, fat:9.5},
+  {name:"Veau (blanquette, cuite)",            cat:"Veau", cal:195, prot:24.0, carb:3.0, fat:9.0},
+  {name:"Veau (foie, sauté)",                  cat:"Veau", cal:172, prot:25.5, carb:3.5, fat:6.0},
+  {name:"Veau (rognon, cuit)",                 cat:"Veau", cal:152, prot:24.0, carb:1.0, fat:5.5},
+
+  // ── AGNEAU ─────────────────────────────────────────────────
+  {name:"Agneau (gigot, cuit)",                cat:"Agneau", cal:230, prot:28.0, carb:0.0, fat:13.0},
+  {name:"Agneau (côtelette, grillée)",         cat:"Agneau", cal:305, prot:25.0, carb:0.0, fat:22.0},
+  {name:"Agneau (épaule, cuite)",              cat:"Agneau", cal:280, prot:24.0, carb:0.0, fat:20.0},
+  {name:"Agneau (collier, cuit)",              cat:"Agneau", cal:310, prot:22.0, carb:0.0, fat:24.5},
+  {name:"Agneau (haché, cuit)",                cat:"Agneau", cal:270, prot:22.0, carb:0.0, fat:20.0},
+
+  // ── AUTRES VIANDES ─────────────────────────────────────────
+  {name:"Lapin (cuit)",                        cat:"Autres viandes", cal:183, prot:28.0, carb:0.0, fat:7.5},
+  {name:"Lapin (cuisse, cuite)",               cat:"Autres viandes", cal:175, prot:27.0, carb:0.0, fat:7.0},
+  {name:"Cheval (steak, cuit)",                cat:"Autres viandes", cal:175, prot:28.0, carb:0.0, fat:6.5},
+  {name:"Bison (steak, cuit)",                 cat:"Autres viandes", cal:164, prot:28.5, carb:0.0, fat:5.0},
+  {name:"Autruche (steak, cuit)",              cat:"Autres viandes", cal:158, prot:28.0, carb:0.0, fat:4.5},
+  {name:"Sanglier (cuit)",                     cat:"Autres viandes", cal:193, prot:28.0, carb:0.0, fat:9.0},
+  {name:"Chevreuil (cuit)",                    cat:"Autres viandes", cal:158, prot:29.0, carb:0.0, fat:4.5},
+  {name:"Canard (cru, sans peau)",             cat:"Autres viandes", cal:135, prot:19.0, carb:0.0, fat:6.5},
+
+  // ── CHARCUTERIE ────────────────────────────────────────────
+  {name:"Jambon blanc (sans couenne)",         cat:"Charcuterie", cal:107, prot:18.0, carb:1.0, fat:3.5},
+  {name:"Jambon blanc (découenné, dégraissé)", cat:"Charcuterie", cal:97,  prot:19.0, carb:1.0, fat:2.5},
+  {name:"Jambon de Paris (cuit)",              cat:"Charcuterie", cal:113, prot:17.5, carb:1.5, fat:4.5},
+  {name:"Jambon cru (parme)",                  cat:"Charcuterie", cal:239, prot:25.9, carb:0.3, fat:15.0},
+  {name:"Jambon cru (serrano)",                cat:"Charcuterie", cal:241, prot:26.5, carb:0.2, fat:14.8},
+  {name:"Jambon cru (bayonne)",                cat:"Charcuterie", cal:225, prot:26.0, carb:0.2, fat:13.5},
+  {name:"Jambon cru (Schwarzwald)",            cat:"Charcuterie", cal:220, prot:23.0, carb:0.0, fat:14.0},
+  {name:"Lardons fumés (cuits)",               cat:"Charcuterie", cal:350, prot:18.0, carb:0.5, fat:30.0},
+  {name:"Lardons nature (cuits)",              cat:"Charcuterie", cal:320, prot:19.0, carb:0.5, fat:27.0},
+  {name:"Chorizo (doux)",                      cat:"Charcuterie", cal:393, prot:22.6, carb:2.0, fat:34.0},
+  {name:"Chorizo (fort)",                      cat:"Charcuterie", cal:400, prot:22.0, carb:1.5, fat:35.0},
+  {name:"Saucisson sec",                       cat:"Charcuterie", cal:435, prot:27.0, carb:1.5, fat:36.0},
+  {name:"Saucisse de Francfort (cuite)",       cat:"Charcuterie", cal:270, prot:11.0, carb:2.0, fat:24.0},
+  {name:"Saucisse de Toulouse (cuite)",        cat:"Charcuterie", cal:290, prot:17.0, carb:2.5, fat:24.0},
+  {name:"Saucisse de Strasbourg",              cat:"Charcuterie", cal:285, prot:12.0, carb:2.0, fat:26.0},
+  {name:"Merguez (grillée)",                   cat:"Charcuterie", cal:285, prot:17.0, carb:2.0, fat:24.0},
+  {name:"Chipolata (grillée)",                 cat:"Charcuterie", cal:305, prot:16.5, carb:2.5, fat:26.0},
+  {name:"Boudin noir (cuit)",                  cat:"Charcuterie", cal:284, prot:16.0, carb:10.0, fat:20.0},
+  {name:"Boudin blanc (cuit)",                 cat:"Charcuterie", cal:215, prot:12.0, carb:9.0, fat:14.0},
+  {name:"Andouillette (grillée)",              cat:"Charcuterie", cal:240, prot:19.0, carb:2.0, fat:17.0},
+  {name:"Andouille",                           cat:"Charcuterie", cal:290, prot:17.5, carb:1.0, fat:24.0},
+  {name:"Rillettes de porc",                   cat:"Charcuterie", cal:414, prot:20.0, carb:0.5, fat:37.0},
+  {name:"Rillettes de canard",                 cat:"Charcuterie", cal:424, prot:18.0, carb:0.5, fat:38.5},
+  {name:"Pâté de campagne",                    cat:"Charcuterie", cal:310, prot:17.0, carb:4.0, fat:26.0},
+  {name:"Mousse de foie",                      cat:"Charcuterie", cal:330, prot:16.0, carb:3.0, fat:28.0},
+  {name:"Foie gras (canard, mi-cuit)",         cat:"Charcuterie", cal:462, prot:8.5, carb:3.5, fat:46.0},
+  {name:"Bacon (tranches grillées)",           cat:"Charcuterie", cal:418, prot:24.0, carb:0.0, fat:36.0},
+  {name:"Coppa",                               cat:"Charcuterie", cal:344, prot:26.0, carb:0.0, fat:27.0},
+  {name:"Bresaola",                            cat:"Charcuterie", cal:152, prot:26.5, carb:0.0, fat:4.3},
+  {name:"Mortadelle",                          cat:"Charcuterie", cal:311, prot:15.0, carb:3.0, fat:26.5},
+  {name:"Salami",                              cat:"Charcuterie", cal:425, prot:22.0, carb:2.0, fat:37.0},
+
+  // ── ŒUFS ───────────────────────────────────────────────────
+  {name:"Œuf entier (cru)",                    cat:"Œufs", cal:143, prot:12.6, carb:0.7, fat:9.5},
+  {name:"Œuf entier (dur / mollet)",           cat:"Œufs", cal:155, prot:12.6, carb:1.1, fat:10.6},
+  {name:"Œuf entier (poché)",                  cat:"Œufs", cal:143, prot:12.6, carb:0.7, fat:9.5},
+  {name:"Œuf entier (à la coque)",             cat:"Œufs", cal:143, prot:12.6, carb:0.7, fat:9.5},
+  {name:"Blanc d'œuf (cru)",                   cat:"Œufs", cal:52,  prot:11.0, carb:0.7, fat:0.2},
+  {name:"Blanc d'œuf (cuit)",                  cat:"Œufs", cal:52,  prot:10.9, carb:0.7, fat:0.2},
+  {name:"Jaune d'œuf (cru)",                   cat:"Œufs", cal:322, prot:15.9, carb:3.6, fat:26.5},
+  {name:"Omelette nature (cuite)",             cat:"Œufs", cal:154, prot:10.6, carb:0.6, fat:12.3},
+  {name:"Omelette (beurre, 2 œufs)",          cat:"Œufs", cal:185, prot:12.0, carb:0.5, fat:15.0},
+  {name:"Œufs brouillés (beurre)",            cat:"Œufs", cal:176, prot:11.0, carb:0.7, fat:14.0},
+  {name:"Œufs brouillés (sans beurre)",       cat:"Œufs", cal:148, prot:11.5, carb:0.7, fat:11.0},
+  {name:"Œuf au plat (beurre)",               cat:"Œufs", cal:196, prot:12.5, carb:0.5, fat:16.0},
+  {name:"Œuf de caille (cuit)",               cat:"Œufs", cal:158, prot:13.0, carb:0.8, fat:11.0},
+
+  // ── POISSONS MAIGRES ───────────────────────────────────────
+  {name:"Cabillaud (cuit à l'eau)",            cat:"Poissons maigres", cal:105, prot:23.0, carb:0.0, fat:1.2},
+  {name:"Cabillaud (cuit à la vapeur)",        cat:"Poissons maigres", cal:100, prot:22.5, carb:0.0, fat:1.0},
+  {name:"Cabillaud (poêlé, sans matière grasse)",cat:"Poissons maigres", cal:115, prot:23.5, carb:0.0, fat:1.8},
+  {name:"Cabillaud (cru)",                     cat:"Poissons maigres", cal:82,  prot:18.0, carb:0.0, fat:0.7},
+  {name:"Colin (lieu noir, cuit)",             cat:"Poissons maigres", cal:98,  prot:22.0, carb:0.0, fat:0.7},
+  {name:"Merlan (cuit)",                       cat:"Poissons maigres", cal:92,  prot:20.0, carb:0.0, fat:0.9},
+  {name:"Sole (cuite)",                        cat:"Poissons maigres", cal:92,  prot:19.9, carb:0.0, fat:1.2},
+  {name:"Plie / carrelet (cuit)",              cat:"Poissons maigres", cal:91,  prot:18.8, carb:0.0, fat:1.5},
+  {name:"Dorade (grillée)",                    cat:"Poissons maigres", cal:128, prot:23.0, carb:0.0, fat:4.0},
+  {name:"Bar / loup (grillé)",                 cat:"Poissons maigres", cal:124, prot:23.5, carb:0.0, fat:3.5},
+  {name:"Daurade royale (cuite)",              cat:"Poissons maigres", cal:127, prot:23.0, carb:0.0, fat:3.9},
+  {name:"Tilapia (cuit)",                      cat:"Poissons maigres", cal:128, prot:26.0, carb:0.0, fat:2.7},
+  {name:"Perche du Nil (cuite)",               cat:"Poissons maigres", cal:105, prot:21.0, carb:0.0, fat:2.0},
+  {name:"Flétan (cuit)",                       cat:"Poissons maigres", cal:140, prot:27.0, carb:0.0, fat:3.0},
+  {name:"Limande (cuite)",                     cat:"Poissons maigres", cal:86,  prot:18.0, carb:0.0, fat:1.2},
+  {name:"Sandre (cuit)",                       cat:"Poissons maigres", cal:95,  prot:19.0, carb:0.0, fat:1.5},
+  {name:"Brochet (cuit)",                      cat:"Poissons maigres", cal:100, prot:21.0, carb:0.0, fat:1.5},
+  {name:"Cabillaud (pané, cuit)",              cat:"Poissons maigres", cal:195, prot:14.0, carb:15.0, fat:8.0},
+
+  // ── POISSONS GRAS ──────────────────────────────────────────
+  {name:"Saumon atlantique (cuit)",            cat:"Poissons gras", cal:208, prot:27.0, carb:0.0, fat:10.5},
+  {name:"Saumon atlantique (cru)",             cat:"Poissons gras", cal:179, prot:20.0, carb:0.0, fat:10.9},
+  {name:"Saumon (grillé)",                     cat:"Poissons gras", cal:218, prot:27.5, carb:0.0, fat:11.5},
+  {name:"Saumon (poché)",                      cat:"Poissons gras", cal:200, prot:26.5, carb:0.0, fat:10.0},
+  {name:"Saumon fumé",                         cat:"Poissons gras", cal:170, prot:25.4, carb:0.0, fat:7.8},
+  {name:"Thon rouge (cru)",                    cat:"Poissons gras", cal:144, prot:23.3, carb:0.0, fat:4.9},
+  {name:"Thon frais (grillé)",                 cat:"Poissons gras", cal:184, prot:30.0, carb:0.0, fat:6.6},
+  {name:"Thon en boîte (au naturel)",          cat:"Poissons gras", cal:116, prot:25.5, carb:0.0, fat:1.0},
+  {name:"Thon en boîte (à l'huile, égoutté)", cat:"Poissons gras", cal:198, prot:25.0, carb:0.0, fat:10.0},
+  {name:"Maquereau (cuit)",                    cat:"Poissons gras", cal:232, prot:21.5, carb:0.0, fat:15.9},
+  {name:"Maquereau (fumé)",                    cat:"Poissons gras", cal:239, prot:23.0, carb:0.0, fat:16.0},
+  {name:"Maquereau (filets marinés à l'huile)",cat:"Poissons gras", cal:290, prot:17.0, carb:0.0, fat:24.0},
+  {name:"Sardine (fraîche, grillée)",          cat:"Poissons gras", cal:185, prot:21.5, carb:0.0, fat:10.5},
+  {name:"Sardine en boîte (à l'huile)",        cat:"Poissons gras", cal:208, prot:24.6, carb:0.0, fat:11.5},
+  {name:"Sardine en boîte (au naturel)",       cat:"Poissons gras", cal:136, prot:23.5, carb:0.0, fat:4.8},
+  {name:"Hareng (fumé)",                       cat:"Poissons gras", cal:215, prot:23.0, carb:0.0, fat:13.5},
+  {name:"Hareng (grillé)",                     cat:"Poissons gras", cal:200, prot:22.0, carb:0.0, fat:12.0},
+  {name:"Truite (cuite)",                      cat:"Poissons gras", cal:170, prot:26.0, carb:0.0, fat:7.0},
+  {name:"Truite fumée",                        cat:"Poissons gras", cal:182, prot:26.5, carb:0.0, fat:8.5},
+  {name:"Anchois (à l'huile)",                 cat:"Poissons gras", cal:210, prot:29.0, carb:0.0, fat:10.5},
+  {name:"Anchois (frais, grillés)",            cat:"Poissons gras", cal:165, prot:22.0, carb:0.0, fat:8.5},
+  {name:"Espadon (cuit)",                      cat:"Poissons gras", cal:172, prot:27.0, carb:0.0, fat:6.5},
+  {name:"Anguille (cuite)",                    cat:"Poissons gras", cal:289, prot:18.5, carb:0.0, fat:23.5},
+
+  // ── FRUITS DE MER ──────────────────────────────────────────
+  {name:"Crevettes grises (cuites)",           cat:"Fruits de mer", cal:98,  prot:22.0, carb:0.0, fat:0.8},
+  {name:"Crevettes roses (cuites)",            cat:"Fruits de mer", cal:99,  prot:21.3, carb:0.9, fat:1.1},
+  {name:"Gambas (grillées)",                   cat:"Fruits de mer", cal:118, prot:24.0, carb:0.0, fat:2.0},
+  {name:"Moules (cuites)",                     cat:"Fruits de mer", cal:95,  prot:13.7, carb:3.7, fat:2.7},
+  {name:"Huîtres (crues)",                     cat:"Fruits de mer", cal:59,  prot:6.1,  carb:4.7, fat:1.3},
+  {name:"Coquilles Saint-Jacques (cuites)",    cat:"Fruits de mer", cal:97,  prot:18.1, carb:4.0, fat:1.4},
+  {name:"Calamar / encornet (cuit)",           cat:"Fruits de mer", cal:92,  prot:19.0, carb:1.5, fat:1.3},
+  {name:"Poulpe (cuit)",                       cat:"Fruits de mer", cal:82,  prot:14.9, carb:2.2, fat:1.0},
+  {name:"Palourdes (cuites)",                  cat:"Fruits de mer", cal:148, prot:25.5, carb:5.1, fat:2.0},
+  {name:"Homard (cuit)",                       cat:"Fruits de mer", cal:112, prot:21.0, carb:1.0, fat:2.5},
+  {name:"Crabe (cuit)",                        cat:"Fruits de mer", cal:97,  prot:19.5, carb:0.0, fat:1.8},
+  {name:"Langoustines (cuites)",               cat:"Fruits de mer", cal:105, prot:20.0, carb:0.0, fat:2.5},
+  {name:"Bigorneaux (cuits)",                  cat:"Fruits de mer", cal:96,  prot:17.0, carb:2.7, fat:2.0},
+  {name:"Surimi (bâtonnets)",                  cat:"Fruits de mer", cal:97,  prot:8.6,  carb:12.5, fat:1.0},
+
+  // ── PRODUITS LAITIERS ──────────────────────────────────────
+  {name:"Lait entier (3.5%)",                  cat:"Lait & Yaourts", cal:61,  prot:3.2, carb:4.8, fat:3.4},
+  {name:"Lait demi-écrémé",                    cat:"Lait & Yaourts", cal:46,  prot:3.2, carb:4.7, fat:1.6},
+  {name:"Lait écrémé",                         cat:"Lait & Yaourts", cal:34,  prot:3.4, carb:5.0, fat:0.1},
+  {name:"Yaourt nature (entier)",              cat:"Lait & Yaourts", cal:61,  prot:3.8, carb:4.7, fat:3.0},
+  {name:"Yaourt nature (0%)",                  cat:"Lait & Yaourts", cal:45,  prot:4.4, carb:5.5, fat:0.1},
+  {name:"Yaourt grec (entier, 10%)",           cat:"Lait & Yaourts", cal:97,  prot:9.0, carb:3.6, fat:5.0},
+  {name:"Yaourt grec (0%)",                    cat:"Lait & Yaourts", cal:57,  prot:9.9, carb:4.0, fat:0.2},
+  {name:"Skyr nature",                         cat:"Lait & Yaourts", cal:63,  prot:11.0, carb:4.0, fat:0.2},
+  {name:"Fromage blanc (0%)",                  cat:"Lait & Yaourts", cal:45,  prot:8.0, carb:4.5, fat:0.2},
+  {name:"Fromage blanc (3%)",                  cat:"Lait & Yaourts", cal:70,  prot:7.5, carb:4.5, fat:3.0},
+  {name:"Fromage blanc (20%)",                 cat:"Lait & Yaourts", cal:113, prot:7.0, carb:4.5, fat:7.5},
+  {name:"Petit-suisse nature",                 cat:"Lait & Yaourts", cal:105, prot:7.2, carb:4.0, fat:6.5},
+  {name:"Kéfir nature",                        cat:"Lait & Yaourts", cal:52,  prot:3.5, carb:4.8, fat:1.5},
+  {name:"Crème fraîche entière (30%)",         cat:"Lait & Yaourts", cal:292, prot:2.3, carb:3.5, fat:30.0},
+  {name:"Crème fraîche légère (15%)",          cat:"Lait & Yaourts", cal:166, prot:3.0, carb:3.7, fat:15.0},
+  {name:"Crème liquide entière (30%)",         cat:"Lait & Yaourts", cal:292, prot:2.3, carb:3.5, fat:30.0},
+
+  // ── FROMAGES ───────────────────────────────────────────────
+  {name:"Emmental",                            cat:"Fromages", cal:382, prot:28.7, carb:0.5, fat:29.7},
+  {name:"Gruyère",                             cat:"Fromages", cal:413, prot:29.8, carb:0.4, fat:32.3},
+  {name:"Comté",                               cat:"Fromages", cal:409, prot:27.4, carb:0.1, fat:33.0},
+  {name:"Beaufort",                            cat:"Fromages", cal:410, prot:27.0, carb:0.0, fat:33.5},
+  {name:"Abondance",                           cat:"Fromages", cal:380, prot:27.0, carb:0.0, fat:30.0},
+  {name:"Gouda",                               cat:"Fromages", cal:356, prot:24.9, carb:0.6, fat:27.4},
+  {name:"Edam",                                cat:"Fromages", cal:314, prot:24.5, carb:0.5, fat:23.0},
+  {name:"Cheddar",                             cat:"Fromages", cal:403, prot:25.0, carb:0.5, fat:33.1},
+  {name:"Mozzarella (entière)",                cat:"Fromages", cal:250, prot:18.9, carb:2.2, fat:19.9},
+  {name:"Mozzarella (light)",                  cat:"Fromages", cal:195, prot:20.0, carb:2.2, fat:12.0},
+  {name:"Parmesan (râpé)",                     cat:"Fromages", cal:431, prot:38.5, carb:3.2, fat:28.8},
+  {name:"Pecorino",                            cat:"Fromages", cal:387, prot:31.0, carb:0.0, fat:29.0},
+  {name:"Manchego",                            cat:"Fromages", cal:392, prot:24.0, carb:0.5, fat:32.0},
+  {name:"Roquefort",                           cat:"Fromages", cal:369, prot:22.0, carb:2.0, fat:31.0},
+  {name:"Gorgonzola",                          cat:"Fromages", cal:361, prot:21.0, carb:0.0, fat:31.0},
+  {name:"Stilton",                             cat:"Fromages", cal:411, prot:22.0, carb:0.1, fat:35.5},
+  {name:"Camembert",                           cat:"Fromages", cal:271, prot:20.0, carb:0.5, fat:21.0},
+  {name:"Brie",                                cat:"Fromages", cal:334, prot:20.8, carb:0.5, fat:27.7},
+  {name:"Coulommiers",                         cat:"Fromages", cal:295, prot:19.5, carb:0.5, fat:24.0},
+  {name:"Munster",                             cat:"Fromages", cal:297, prot:21.1, carb:0.5, fat:23.5},
+  {name:"Pont-l'Évêque",                       cat:"Fromages", cal:293, prot:19.5, carb:0.5, fat:23.5},
+  {name:"Livarot",                             cat:"Fromages", cal:296, prot:22.5, carb:0.5, fat:23.0},
+  {name:"Époisses",                            cat:"Fromages", cal:289, prot:18.5, carb:0.5, fat:23.5},
+  {name:"Feta",                                cat:"Fromages", cal:264, prot:14.2, carb:4.1, fat:21.3},
+  {name:"Halloumi",                            cat:"Fromages", cal:317, prot:21.0, carb:0.5, fat:26.0},
+  {name:"Ricotta",                             cat:"Fromages", cal:174, prot:11.3, carb:3.0, fat:13.0},
+  {name:"Mascarpone",                          cat:"Fromages", cal:429, prot:4.7, carb:4.5, fat:44.0},
+  {name:"Cottage cheese (nature)",             cat:"Fromages", cal:98,  prot:11.1, carb:3.4, fat:4.3},
+  {name:"Philadelphia (fromage frais)",        cat:"Fromages", cal:245, prot:5.9, carb:3.2, fat:23.5},
+  {name:"Boursin (ail et fines herbes)",       cat:"Fromages", cal:386, prot:7.0, carb:3.0, fat:39.0},
+  {name:"Beurre",                              cat:"Fromages", cal:717, prot:0.9, carb:0.7, fat:81.1},
+  {name:"Beurre demi-sel",                     cat:"Fromages", cal:714, prot:0.9, carb:0.6, fat:80.5},
+
+  // ── PROTÉINES & SUPPLÉMENTS ────────────────────────────────
+  {name:"Whey protéine (vanille)",             cat:"Suppléments", cal:370, prot:74.0, carb:8.0, fat:5.0},
+  {name:"Whey protéine (chocolat)",            cat:"Suppléments", cal:365, prot:72.0, carb:9.0, fat:5.5},
+  {name:"Whey protéine (fraise)",              cat:"Suppléments", cal:368, prot:73.0, carb:8.5, fat:5.0},
+  {name:"Whey protéine (nature, non sucrée)",  cat:"Suppléments", cal:380, prot:82.0, carb:4.0, fat:4.0},
+  {name:"Isolat de whey",                      cat:"Suppléments", cal:380, prot:88.0, carb:3.0, fat:1.5},
+  {name:"Caséine (chocolat)",                  cat:"Suppléments", cal:358, prot:77.0, carb:5.0, fat:4.5},
+  {name:"Caséine (vanille)",                   cat:"Suppléments", cal:356, prot:76.0, carb:5.5, fat:4.0},
+  {name:"Protéine de soja (poudre)",           cat:"Suppléments", cal:335, prot:81.0, carb:3.0, fat:1.0},
+  {name:"Protéine de pois (poudre)",           cat:"Suppléments", cal:355, prot:80.0, carb:5.0, fat:3.0},
+  {name:"Protéine de chanvre (poudre)",        cat:"Suppléments", cal:380, prot:50.0, carb:15.0, fat:9.0},
+  {name:"Barre protéinée (moyenne ~60g)",      cat:"Suppléments", cal:350, prot:33.0, carb:32.0, fat:10.0},
+  {name:"Barre protéinée faible cal (~45g)",   cat:"Suppléments", cal:190, prot:20.0, carb:20.0, fat:4.0},
+  {name:"Shake protéiné tout prêt (330ml)",    cat:"Suppléments", cal:45,  prot:6.0,  carb:3.0,  fat:0.8},
+  {name:"Gaineur (Mass gainer, poudre)",       cat:"Suppléments", cal:388, prot:28.0, carb:63.0, fat:3.0},
+  {name:"BCAA (poudre, aromatisée)",           cat:"Suppléments", cal:235, prot:58.0, carb:0.0,  fat:0.0},
+
+  // ── VÉGÉTAUX PROTÉINÉS ─────────────────────────────────────
+  {name:"Tofu ferme (nature)",                 cat:"Végétaux protéinés", cal:76,  prot:8.1, carb:1.9, fat:4.2},
+  {name:"Tofu soyeux",                         cat:"Végétaux protéinés", cal:55,  prot:5.0, carb:2.0, fat:2.7},
+  {name:"Tofu fumé",                           cat:"Végétaux protéinés", cal:125, prot:15.0, carb:1.5, fat:6.5},
+  {name:"Tempeh",                              cat:"Végétaux protéinés", cal:193, prot:20.3, carb:9.4, fat:10.8},
+  {name:"Edamame (haricots de soja cuits)",    cat:"Végétaux protéinés", cal:122, prot:11.9, carb:8.9, fat:5.2},
+  {name:"Seitan (nature)",                     cat:"Végétaux protéinés", cal:150, prot:25.0, carb:7.0, fat:2.0},
+  {name:"Protéine de soja texturée (TSP, sèche)",cat:"Végétaux protéinés", cal:329, prot:52.0, carb:30.0, fat:1.0},
+
+  // ── LÉGUMINEUSES ───────────────────────────────────────────
+  {name:"Lentilles vertes (cuites)",           cat:"Légumineuses", cal:116, prot:9.0,  carb:20.1, fat:0.4},
+  {name:"Lentilles corail (cuites)",           cat:"Légumineuses", cal:105, prot:7.9,  carb:17.5, fat:0.5},
+  {name:"Lentilles blondes (cuites)",          cat:"Légumineuses", cal:112, prot:8.5,  carb:19.0, fat:0.4},
+  {name:"Pois chiches (cuits)",                cat:"Légumineuses", cal:164, prot:8.9,  carb:27.4, fat:2.6},
+  {name:"Haricots rouges (cuits)",             cat:"Légumineuses", cal:127, prot:8.7,  carb:22.8, fat:0.5},
+  {name:"Haricots blancs (cuits)",             cat:"Légumineuses", cal:124, prot:8.0,  carb:22.3, fat:0.6},
+  {name:"Haricots noirs (cuits)",              cat:"Légumineuses", cal:132, prot:8.9,  carb:23.7, fat:0.5},
+  {name:"Fèves (cuites)",                      cat:"Légumineuses", cal:110, prot:7.6,  carb:19.7, fat:0.5},
+  {name:"Pois cassés (cuits)",                 cat:"Légumineuses", cal:118, prot:8.3,  carb:21.1, fat:0.4},
+
+  // ── FÉCULENTS ──────────────────────────────────────────────
+  {name:"Riz blanc (cuit)",                    cat:"Féculents", cal:130, prot:2.7, carb:28.2, fat:0.3},
+  {name:"Riz complet (cuit)",                  cat:"Féculents", cal:123, prot:2.6, carb:25.6, fat:1.0},
+  {name:"Riz basmati (cuit)",                  cat:"Féculents", cal:131, prot:2.8, carb:28.0, fat:0.3},
+  {name:"Pâtes (blé dur, cuites)",             cat:"Féculents", cal:158, prot:5.8, carb:30.9, fat:0.9},
+  {name:"Pâtes complètes (cuites)",            cat:"Féculents", cal:147, prot:5.5, carb:27.9, fat:0.9},
+  {name:"Pain blanc (baguette)",               cat:"Féculents", cal:275, prot:9.0, carb:57.0, fat:1.2},
+  {name:"Pain complet",                        cat:"Féculents", cal:247, prot:9.0, carb:47.9, fat:2.0},
+  {name:"Pomme de terre (cuite vapeur)",       cat:"Féculents", cal:75,  prot:2.0, carb:17.0, fat:0.1},
+  {name:"Patate douce (cuite)",                cat:"Féculents", cal:90,  prot:2.0, carb:20.7, fat:0.1},
+  {name:"Quinoa (cuit)",                       cat:"Féculents", cal:120, prot:4.4, carb:21.3, fat:1.9},
+  {name:"Flocons d'avoine",                    cat:"Féculents", cal:368, prot:13.5, carb:66.3, fat:7.1},
+  {name:"Boulgour (cuit)",                     cat:"Féculents", cal:83,  prot:3.1, carb:18.6, fat:0.2},
+
+  // ── FRUITS ─────────────────────────────────────────────────
+  {name:"Pomme",       cat:"Fruits", cal:52,  prot:0.3, carb:13.8, fat:0.2},
+  {name:"Poire",       cat:"Fruits", cal:57,  prot:0.4, carb:15.2, fat:0.1},
+  {name:"Banane",      cat:"Fruits", cal:89,  prot:1.1, carb:22.8, fat:0.3},
+  {name:"Orange",      cat:"Fruits", cal:47,  prot:0.9, carb:11.8, fat:0.1},
+  {name:"Kiwi",        cat:"Fruits", cal:61,  prot:1.1, carb:14.7, fat:0.5},
+  {name:"Fraise",      cat:"Fruits", cal:32,  prot:0.7, carb:7.7,  fat:0.3},
+  {name:"Framboise",   cat:"Fruits", cal:52,  prot:1.2, carb:11.9, fat:0.7},
+  {name:"Myrtille",    cat:"Fruits", cal:57,  prot:0.7, carb:14.5, fat:0.3},
+  {name:"Cerise",      cat:"Fruits", cal:63,  prot:1.1, carb:16.0, fat:0.2},
+  {name:"Raisin",      cat:"Fruits", cal:69,  prot:0.7, carb:18.1, fat:0.2},
+  {name:"Mangue",      cat:"Fruits", cal:60,  prot:0.8, carb:15.0, fat:0.4},
+  {name:"Ananas",      cat:"Fruits", cal:50,  prot:0.5, carb:13.1, fat:0.1},
+  {name:"Melon",       cat:"Fruits", cal:34,  prot:0.8, carb:8.2,  fat:0.2},
+  {name:"Pastèque",    cat:"Fruits", cal:30,  prot:0.6, carb:7.6,  fat:0.2},
+  {name:"Avocat",      cat:"Fruits", cal:160, prot:2.0, carb:8.5,  fat:14.7},
+  {name:"Pamplemousse",cat:"Fruits", cal:42,  prot:0.8, carb:10.7, fat:0.1},
+  {name:"Abricot",     cat:"Fruits", cal:48,  prot:1.4, carb:11.1, fat:0.4},
+  {name:"Pêche",       cat:"Fruits", cal:39,  prot:0.9, carb:9.5,  fat:0.3},
+  {name:"Prune",       cat:"Fruits", cal:46,  prot:0.7, carb:11.4, fat:0.3},
+  {name:"Grenade",     cat:"Fruits", cal:83,  prot:1.7, carb:18.7, fat:1.2},
+
+  // ── LÉGUMES ────────────────────────────────────────────────
+  {name:"Tomate",        cat:"Légumes", cal:18, prot:0.9, carb:3.9, fat:0.2},
+  {name:"Concombre",     cat:"Légumes", cal:15, prot:0.7, carb:3.6, fat:0.1},
+  {name:"Courgette",     cat:"Légumes", cal:17, prot:1.2, carb:3.1, fat:0.3},
+  {name:"Aubergine",     cat:"Légumes", cal:25, prot:1.0, carb:5.9, fat:0.2},
+  {name:"Poivron rouge", cat:"Légumes", cal:31, prot:1.0, carb:6.0, fat:0.3},
+  {name:"Carotte",       cat:"Légumes", cal:41, prot:0.9, carb:9.6, fat:0.2},
+  {name:"Épinard cru",   cat:"Légumes", cal:23, prot:2.9, carb:3.6, fat:0.4},
+  {name:"Brocoli",       cat:"Légumes", cal:34, prot:2.8, carb:6.6, fat:0.4},
+  {name:"Chou-fleur",    cat:"Légumes", cal:25, prot:1.9, carb:5.0, fat:0.3},
+  {name:"Chou kale",     cat:"Légumes", cal:49, prot:4.3, carb:8.8, fat:0.9},
+  {name:"Asperge",       cat:"Légumes", cal:20, prot:2.2, carb:3.9, fat:0.1},
+  {name:"Haricot vert",  cat:"Légumes", cal:35, prot:1.9, carb:7.9, fat:0.1},
+  {name:"Petit pois",    cat:"Légumes", cal:81, prot:5.4, carb:14.5, fat:0.4},
+  {name:"Maïs en grains",cat:"Légumes", cal:86, prot:3.2, carb:19.0, fat:1.2},
+  {name:"Champignon de Paris", cat:"Légumes", cal:22, prot:3.1, carb:3.3, fat:0.3},
+  {name:"Oignon",        cat:"Légumes", cal:40, prot:1.1, carb:9.3, fat:0.1},
+  {name:"Ail",           cat:"Légumes", cal:149, prot:6.4, carb:33.1, fat:0.5},
+  {name:"Roquette",      cat:"Légumes", cal:25, prot:2.6, carb:3.7, fat:0.7},
+  {name:"Betterave rouge", cat:"Légumes", cal:44, prot:1.7, carb:9.8, fat:0.2},
+  {name:"Courge butternut", cat:"Légumes", cal:45, prot:1.0, carb:11.7, fat:0.1},
+
+  // ── NOIX & GRAINES ─────────────────────────────────────────
+  {name:"Amandes",               cat:"Noix & Graines", cal:579, prot:21.2, carb:21.7, fat:49.9},
+  {name:"Noix",                  cat:"Noix & Graines", cal:654, prot:15.2, carb:13.7, fat:65.2},
+  {name:"Noix de cajou",         cat:"Noix & Graines", cal:553, prot:18.2, carb:30.2, fat:43.9},
+  {name:"Pistaches",             cat:"Noix & Graines", cal:562, prot:20.2, carb:27.5, fat:45.3},
+  {name:"Noisettes",             cat:"Noix & Graines", cal:628, prot:15.0, carb:16.7, fat:60.8},
+  {name:"Cacahuètes grillées",   cat:"Noix & Graines", cal:567, prot:25.8, carb:21.5, fat:49.2},
+  {name:"Beurre de cacahuète",   cat:"Noix & Graines", cal:588, prot:25.1, carb:20.0, fat:50.4},
+  {name:"Beurre d'amande",       cat:"Noix & Graines", cal:614, prot:21.0, carb:20.0, fat:55.0},
+  {name:"Graines de chia",       cat:"Noix & Graines", cal:486, prot:16.5, carb:42.1, fat:30.7},
+  {name:"Graines de lin",        cat:"Noix & Graines", cal:534, prot:18.3, carb:28.9, fat:42.2},
+  {name:"Graines de sésame",     cat:"Noix & Graines", cal:573, prot:17.7, carb:23.5, fat:49.7},
+  {name:"Graines de tournesol",  cat:"Noix & Graines", cal:584, prot:20.8, carb:20.0, fat:51.5},
+  {name:"Graines de courge",     cat:"Noix & Graines", cal:559, prot:30.2, carb:10.7, fat:49.1},
+
+  // ── HUILES & MATIÈRES GRASSES ──────────────────────────────
+  {name:"Huile d'olive",         cat:"Huiles & MG", cal:884, prot:0.0, carb:0.0, fat:100.0},
+  {name:"Huile de tournesol",    cat:"Huiles & MG", cal:884, prot:0.0, carb:0.0, fat:100.0},
+  {name:"Huile de colza",        cat:"Huiles & MG", cal:884, prot:0.0, carb:0.0, fat:100.0},
+  {name:"Huile de coco",         cat:"Huiles & MG", cal:862, prot:0.0, carb:0.0, fat:100.0},
+  {name:"Margarine",             cat:"Huiles & MG", cal:719, prot:0.2, carb:0.7, fat:80.0},
+  {name:"Ghee",                  cat:"Huiles & MG", cal:900, prot:0.0, carb:0.0, fat:99.8},
+
+  // ── CONDIMENTS & SAUCES ────────────────────────────────────
+  {name:"Ketchup",               cat:"Condiments", cal:101, prot:1.0, carb:25.5, fat:0.1},
+  {name:"Moutarde",              cat:"Condiments", cal:67,  prot:4.4, carb:6.4,  fat:3.3},
+  {name:"Mayonnaise",            cat:"Condiments", cal:680, prot:1.5, carb:3.5,  fat:74.0},
+  {name:"Sauce vinaigrette",     cat:"Condiments", cal:496, prot:0.2, carb:3.4,  fat:53.0},
+  {name:"Sauce tomate cuisinée", cat:"Condiments", cal:65,  prot:2.0, carb:11.0, fat:1.5},
+  {name:"Sauce soja",            cat:"Condiments", cal:60,  prot:5.6, carb:5.6,  fat:0.1},
+  {name:"Sauce béchamel",        cat:"Condiments", cal:110, prot:3.5, carb:10.0, fat:6.0},
+  {name:"Sauce pesto",           cat:"Condiments", cal:449, prot:6.0, carb:5.0,  fat:45.0},
+  {name:"Houmous",               cat:"Condiments", cal:177, prot:7.9, carb:14.3, fat:9.6},
+  {name:"Guacamole",             cat:"Condiments", cal:157, prot:2.0, carb:8.8,  fat:14.5},
+
+  // ── BOISSONS ───────────────────────────────────────────────
+  {name:"Lait de soja",          cat:"Boissons", cal:33,  prot:3.3, carb:1.8, fat:1.8},
+  {name:"Lait d'avoine",         cat:"Boissons", cal:45,  prot:0.8, carb:8.7, fat:1.0},
+  {name:"Lait d'amande",         cat:"Boissons", cal:13,  prot:0.5, carb:0.6, fat:1.1},
+  {name:"Café noir (expresso)",  cat:"Boissons", cal:2,   prot:0.1, carb:0.0, fat:0.0},
+  {name:"Thé infusé",            cat:"Boissons", cal:1,   prot:0.0, carb:0.3, fat:0.0},
+  {name:"Jus d'orange frais",    cat:"Boissons", cal:45,  prot:0.7, carb:10.4, fat:0.2},
+  {name:"Coca-Cola",             cat:"Boissons", cal:42,  prot:0.0, carb:10.6, fat:0.0},
+  {name:"Coca-Cola Zero",        cat:"Boissons", cal:0,   prot:0.0, carb:0.0,  fat:0.0},
+  {name:"Bière (5%)",            cat:"Boissons", cal:43,  prot:0.4, carb:4.6,  fat:0.0},
+  {name:"Vin rouge",             cat:"Boissons", cal:85,  prot:0.1, carb:2.6,  fat:0.0},
+  {name:"Vin blanc",             cat:"Boissons", cal:82,  prot:0.1, carb:3.0,  fat:0.0},
+
+  // ── VIENNOISERIES & SUCRERIES ──────────────────────────────
+  {name:"Croissant",             cat:"Sucreries", cal:406, prot:8.0, carb:46.0, fat:21.0},
+  {name:"Pain au chocolat",      cat:"Sucreries", cal:390, prot:8.5, carb:46.0, fat:20.0},
+  {name:"Brioche",               cat:"Sucreries", cal:390, prot:9.0, carb:48.0, fat:19.0},
+  {name:"Cookie chocolat",       cat:"Sucreries", cal:480, prot:6.5, carb:62.0, fat:23.0},
+  {name:"Chocolat noir 70%",     cat:"Sucreries", cal:598, prot:7.8, carb:45.9, fat:42.6},
+  {name:"Chocolat au lait",      cat:"Sucreries", cal:535, prot:7.7, carb:56.9, fat:29.7},
+  {name:"Nutella",               cat:"Sucreries", cal:539, prot:6.3, carb:57.5, fat:30.9},
+  {name:"Miel",                  cat:"Sucreries", cal:304, prot:0.3, carb:82.4, fat:0.0},
+  {name:"Sucre blanc",           cat:"Sucreries", cal:400, prot:0.0, carb:100.0, fat:0.0},
+  {name:"Glace vanille",         cat:"Sucreries", cal:207, prot:3.5, carb:23.6, fat:11.0},
+];
+
+// Liste des catégories
+const CATEGORIES = [...new Set(LOCAL_FOODS.map(f=>f.cat))];
+
+// ============================================================
+// STATE
+// ============================================================
+let currentDate = new Date();
+let log = {};
+let goals = { cal:2000, prot:150, carb:200, fat:70 };
+let selectedMeal = null;
+let selectedFood = null;
+let searchSource = 'local';
+let activeCat = 'Tous';
+let searchTimer = null;
+let offResults = [];
+
+const MEAL_TYPES = [
+  {id:'breakfast', label:'🌅 Petit-déjeuner'},
+  {id:'lunch',     label:'☀️ Déjeuner'},
+  {id:'snack',     label:'🍎 Collation'},
+  {id:'dinner',    label:'🌙 Dîner'},
+];
+
+const formatDate = d => d.toISOString().split('T')[0];
+function displayDate(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dd = new Date(d); dd.setHours(0,0,0,0);
+  const diff = Math.round((dd-today)/86400000);
+  if (diff===0) return "Aujourd'hui";
+  if (diff===-1) return "Hier";
+  if (diff===1) return "Demain";
+  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+}
+
+// ============================================================
+// STORAGE
+// ============================================================
+function save() {
+  try {
+    localStorage.setItem('nt_log3', JSON.stringify(log));
+    localStorage.setItem('nt_goals3', JSON.stringify(goals));
+  } catch(e) {}
+}
+function load() {
+  try { log = JSON.parse(localStorage.getItem('nt_log3'))||{}; } catch(e) { log={}; }
+  try { const g=JSON.parse(localStorage.getItem('nt_goals3')); if(g) goals=g; } catch(e) {}
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function getDayLog() {
+  const d = formatDate(currentDate);
+  if (!log[d]) log[d] = { meals: MEAL_TYPES.map(m=>({id:m.id,label:m.label,items:[]})) };
+  return log[d];
+}
+function calcItem(item) {
+  const r = item.qty/100;
+  return { cal:(item.food.cal||0)*r, prot:(item.food.prot||0)*r, carb:(item.food.carb||0)*r, fat:(item.food.fat||0)*r };
+}
+function calcDay(dl) {
+  const t={cal:0,prot:0,carb:0,fat:0};
+  if (!dl) return t;
+  dl.meals.forEach(m=>m.items.forEach(i=>{const c=calcItem(i);t.cal+=c.cal;t.prot+=c.prot;t.carb+=c.carb;t.fat+=c.fat;}));
+  return t;
+}
+function offToFood(p) {
+  const n=p.nutriments||{};
+  return { name:p.product_name||p.product_name_fr||'Produit inconnu', brand:p.brands||'',
+    cal:Math.round(n['energy-kcal_100g']||n['energy-kcal']||0),
+    prot:Math.round((n['proteins_100g']||0)*10)/10,
+    carb:Math.round((n['carbohydrates_100g']||0)*10)/10,
+    fat:Math.round((n['fat_100g']||0)*10)/10, source:'off' };
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  document.getElementById('current-date').textContent = displayDate(currentDate);
+  renderSummary(); renderMeals(); renderGoalsForm();
+}
+function renderSummary() {
+  const t=calcDay(getDayLog());
+  document.getElementById('sum-cal').textContent=Math.round(t.cal);
+  document.getElementById('sum-prot').textContent=Math.round(t.prot)+'g';
+  document.getElementById('sum-carb').textContent=Math.round(t.carb)+'g';
+  document.getElementById('sum-fat').textContent=Math.round(t.fat)+'g';
+  document.getElementById('goal-cal-d').textContent='/ '+goals.cal;
+  document.getElementById('goal-prot-d').textContent='/ '+goals.prot+'g';
+  document.getElementById('goal-carb-d').textContent='/ '+goals.carb+'g';
+  document.getElementById('goal-fat-d').textContent='/ '+goals.fat+'g';
+  const pct=(v,g)=>Math.min(100,g>0?Math.round(v/g*100):0)+'%';
+  ['cal','prot','carb','fat'].forEach(k=>{
+    document.getElementById('bar-'+k).style.width=pct(t[k],goals[k]);
+    document.getElementById('pn-'+k).textContent=Math.round(t[k])+' / '+goals[k]+(k==='cal'?'':'g');
+  });
+}
+function renderMeals() {
+  const day=getDayLog();
+  const c=document.getElementById('meals-container');
+  c.innerHTML='';
+  day.meals.forEach((meal,mi)=>{
+    const totCal=meal.items.reduce((a,i)=>a+calcItem(i).cal,0);
+    const sec=document.createElement('div'); sec.className='meal-section';
+    sec.innerHTML=`<div class="meal-header">
+      <div class="meal-title">${meal.label}</div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <span class="meal-cals">${Math.round(totCal)} kcal</span>
+        <button class="add-to-meal" onclick="openSearch(${mi})">+ Ajouter</button>
+      </div>
+    </div>`;
+    if (!meal.items.length) {
+      const e=document.createElement('div');
+      e.style.cssText='padding:6px 0 3px;color:var(--muted);font-size:.75rem;';
+      e.textContent='Vide'; sec.appendChild(e);
+    }
+    meal.items.forEach((item,ii)=>{
+      const c2=calcItem(item);
+      const div=document.createElement('div'); div.className='food-item';
+      div.innerHTML=`<div class="food-info">
+        <div class="food-name">${item.food.name}</div>
+        ${item.food.brand?`<div class="food-brand">${item.food.brand}</div>`:''}
+        <div class="food-qty">${item.qty}g${item.food.source==='off'?'<span class="off-badge">OFF</span>':''}</div>
+        <div class="food-macros">
+          <span class="c">${Math.round(c2.cal)} kcal</span>
+          <span class="p">P ${Math.round(c2.prot)}g</span>
+          <span class="g">G ${Math.round(c2.carb)}g</span>
+          <span class="l">L ${Math.round(c2.fat)}g</span>
+        </div>
+      </div>
+      <button class="del-btn" onclick="deleteItem(${mi},${ii})">✕</button>`;
+      sec.appendChild(div);
+    });
+    c.appendChild(sec);
+  });
+}
+function renderGoalsForm() {
+  document.getElementById('g-cal').value=goals.cal;
+  document.getElementById('g-prot').value=goals.prot;
+  document.getElementById('g-carb').value=goals.carb;
+  document.getElementById('g-fat').value=goals.fat;
+}
+function renderHistory() {
+  const container=document.getElementById('history-list');
+  const keys=Object.keys(log).sort((a,b)=>b.localeCompare(a));
+  if (!keys.length) { container.innerHTML='<div class="empty-state"><div class="emoji">📭</div><p>Aucun historique</p></div>'; return; }
+  container.innerHTML=keys.map(k=>{
+    const t=calcDay(log[k]);
+    const d=new Date(k);
+    const label=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    return `<div class="history-day">
+      <div class="hd-date">${label}</div>
+      <div class="hd-macros">
+        <span style="color:var(--cal-color)">${Math.round(t.cal)} kcal</span>
+        <span style="color:var(--prot-color)">P ${Math.round(t.prot)}g</span>
+        <span style="color:var(--carb-color)">G ${Math.round(t.carb)}g</span>
+        <span style="color:var(--fat-color)">L ${Math.round(t.fat)}g</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function changeDay(d) {
+  currentDate=new Date(currentDate);
+  currentDate.setDate(currentDate.getDate()+d);
+  render();
+}
+function deleteItem(mi,ii) { getDayLog().meals[mi].items.splice(ii,1); save(); render(); }
+function saveGoals() {
+  goals.cal=parseInt(document.getElementById('g-cal').value)||2000;
+  goals.prot=parseInt(document.getElementById('g-prot').value)||150;
+  goals.carb=parseInt(document.getElementById('g-carb').value)||200;
+  goals.fat=parseInt(document.getElementById('g-fat').value)||70;
+  save(); renderSummary();
+  const btn=document.getElementById('save-goals-btn');
+  btn.textContent='✓ Enregistré !';
+  setTimeout(()=>btn.textContent='Enregistrer',1500);
+}
+function showPage(name,el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  el.classList.add('active');
+  if (name==='stats') renderHistory();
+}
+
+// ============================================================
+// SEARCH MODAL
+// ============================================================
+function buildCatBar() {
+  const bar=document.getElementById('cat-scroll');
+  const all=['Tous',...CATEGORIES];
+  bar.innerHTML=all.map(c=>`<button class="cat-btn${c===activeCat?' active':''}" onclick="setCat('${c}')">${c}</button>`).join('');
+}
+
+function setCat(cat) {
+  activeCat=cat;
+  buildCatBar();
+  const q=document.getElementById('food-search').value.trim();
+  renderLocalList(q);
+}
+
+function setSource(src) {
+  searchSource=src;
+  document.getElementById('src-local').classList.toggle('active',src==='local');
+  document.getElementById('src-off').classList.toggle('active',src==='off');
+  document.getElementById('food-search').value='';
+  document.getElementById('search-status').textContent='';
+  document.getElementById('food-list-container').innerHTML='';
+  document.getElementById('cat-scroll').style.display=src==='local'?'flex':'none';
+  if (src==='local') { buildCatBar(); renderLocalList(''); }
+  else document.getElementById('search-status').textContent='Tapez pour rechercher sur Open Food Facts...';
+  document.getElementById('food-search').placeholder=src==='local'?'Rechercher dans la base locale...':'Marque, produit... (ex: Danone, Bjorg, Activia)';
+  document.getElementById('food-search').focus();
+}
+
+function openSearch(mealIdx) {
+  selectedMeal=mealIdx;
+  activeCat='Tous';
+  document.getElementById('food-search').value='';
+  document.getElementById('search-status').textContent='';
+  document.getElementById('food-list-container').innerHTML='';
+  document.getElementById('search-modal').classList.add('open');
+  setSource('local');
+}
+
+document.getElementById('food-search').addEventListener('input',function(){
+  const q=this.value.trim();
+  if (searchSource==='local') { renderLocalList(q); return; }
+  clearTimeout(searchTimer);
+  if (q.length<2) { document.getElementById('search-status').textContent='Tapez au moins 2 caractères...'; document.getElementById('food-list-container').innerHTML=''; return; }
+  document.getElementById('search-status').innerHTML='<span class="spinner"></span>Recherche...';
+  searchTimer=setTimeout(()=>searchOFF(q),600);
+});
+
+function renderLocalList(q) {
+  const n=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  let filtered=LOCAL_FOODS;
+  if (activeCat!=='Tous') filtered=filtered.filter(f=>f.cat===activeCat);
+  if (n) filtered=filtered.filter(f=>f.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(n));
+  const c=document.getElementById('food-list-container');
+  document.getElementById('search-status').textContent=filtered.length+' aliments';
+  if (!filtered.length) { c.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:.83rem;">Aucun résultat</div>'; return; }
+  c.innerHTML=filtered.slice(0,100).map(f=>{
+    const idx=LOCAL_FOODS.indexOf(f);
+    return `<div class="food-list-item" onclick="selectLocalFood(${idx})">
+      <div class="fli-left">
+        <div class="fli-name">${f.name}</div>
+        <div class="fli-sub">P ${f.prot}g · G ${f.carb}g · L ${f.fat}g (100g)</div>
+      </div>
+      <div class="fli-cal">${f.cal} kcal</div>
+    </div>`;
+  }).join('');
+}
+
+async function searchOFF(query) {
+  const status=document.getElementById('search-status');
+  const container=document.getElementById('food-list-container');
+  try {
+    const url=`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=30&fields=product_name,product_name_fr,brands,nutriments&sort_by=unique_scans_n`;
+    const res=await fetch(url);
+    if (!res.ok) throw new Error();
+    const data=await res.json();
+    const products=(data.products||[]).filter(p=>{
+      const n=p.nutriments||{};
+      return (p.product_name||p.product_name_fr)&&(n['energy-kcal_100g']||n['energy-kcal']);
+    });
+    offResults=products.map(offToFood);
+    status.textContent=offResults.length?offResults.length+' produits trouvés':'Aucun résultat avec données nutritionnelles';
+    if (!offResults.length) { container.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:.83rem;">Essayez en anglais ou avec le nom de marque</div>'; return; }
+    container.innerHTML=offResults.map((f,i)=>`
+      <div class="food-list-item" onclick="selectOFFFood(${i})">
+        <div class="fli-left">
+          <div class="fli-name">${f.name}</div>
+          ${f.brand?`<div class="fli-brand">${f.brand}</div>`:''}
+          <div class="fli-sub">P ${f.prot}g · G ${f.carb}g · L ${f.fat}g (100g)</div>
+        </div>
+        <div class="fli-cal">${f.cal} kcal</div>
+      </div>`).join('');
+  } catch(e) {
+    status.textContent='Erreur de connexion';
+    container.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:.83rem;">Impossible de contacter Open Food Facts. Utilisez la base locale.</div>';
+  }
+}
+
+function selectLocalFood(idx) { openQtyModal({...LOCAL_FOODS[idx], source:'local'}); }
+function selectOFFFood(idx) { openQtyModal(offResults[idx]); }
+
+function openQtyModal(food) {
+  selectedFood=food;
+  document.getElementById('search-modal').classList.remove('open');
+  document.getElementById('qty-food-name').textContent=food.name;
+  document.getElementById('qty-food-brand').textContent=food.brand||'';
+  document.getElementById('qty-input').value=100;
+  updateQtyPreview();
+  document.getElementById('qty-modal').classList.add('open');
+  setTimeout(()=>{const i=document.getElementById('qty-input');i.focus();i.select();},300);
+}
+function updateQtyPreview() {
+  if (!selectedFood) return;
+  const r=(parseFloat(document.getElementById('qty-input').value)||0)/100;
+  document.getElementById('qp-cal').textContent=Math.round(selectedFood.cal*r);
+  document.getElementById('qp-prot').textContent=Math.round(selectedFood.prot*r)+'g';
+  document.getElementById('qp-carb').textContent=Math.round(selectedFood.carb*r)+'g';
+  document.getElementById('qp-fat').textContent=Math.round(selectedFood.fat*r)+'g';
+}
+function confirmAdd() {
+  const qty=parseFloat(document.getElementById('qty-input').value);
+  if (!qty||qty<=0) return;
+  getDayLog().meals[selectedMeal].items.push({food:selectedFood,qty});
+  save(); render(); closeQtyModal();
+}
+function closeQtyModal() { document.getElementById('qty-modal').classList.remove('open'); }
+document.getElementById('search-modal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+document.getElementById('qty-modal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
+
+// ============================================================
+// INIT
+// ============================================================
+load(); render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+</script>
+</body>
+</html>
